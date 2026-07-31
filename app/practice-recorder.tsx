@@ -251,7 +251,7 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
               Feedback
             </p>
             <p className="text-lg leading-8">
-              Record one short answer. The mock evaluator will return a
+              Record one short answer. The evaluator will return a
               transcript, scores, and one concrete retry instruction.
             </p>
           </div>

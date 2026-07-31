@@ -24,7 +24,7 @@ export class MockMandarinEvaluator implements MandarinEvaluator {
       grammarScore: 84,
       naturalnessScore: 82,
       correctedMandarin: "我学中文学了三个月。",
-      pinyin: "Wo xue Zhongwen xue le san ge yue.",
+      pinyin: "Wǒ xué Zhōngwén xué le sān ge yuè.",
       coachingTip:
         "Your meaning is clear. Keep 学 before the object and repeat 学 before the duration to make the time span feel natural.",
       retryInstruction:

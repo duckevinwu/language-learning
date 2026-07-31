@@ -1,10 +1,13 @@
-import { MockMandarinEvaluator, MockSpeechTranscriber } from "./mocks";
+import {
+  OpenAIMandarinEvaluator,
+  OpenAISpeechTranscriber,
+} from "./openai";
 import type { MandarinEvaluator, SpeechTranscriber } from "./types";
 
 export function getSpeechTranscriber(): SpeechTranscriber {
-  return new MockSpeechTranscriber();
+  return new OpenAISpeechTranscriber();
 }
 
 export function getMandarinEvaluator(): MandarinEvaluator {
-  return new MockMandarinEvaluator();
+  return new OpenAIMandarinEvaluator();
 }

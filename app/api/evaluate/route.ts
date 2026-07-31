@@ -1,3 +1,4 @@
+import { AIProviderError } from "@/lib/ai/errors";
 import { getMandarinEvaluator, getSpeechTranscriber } from "@/lib/ai/providers";
 import type { AudioInput } from "@/lib/ai/types";
 import { dailyChallenge } from "@/lib/challenge";
@@ -20,13 +21,26 @@ export async function POST(request: Request) {
     size: audio.size,
   };
 
-  const transcriber = getSpeechTranscriber();
-  const evaluator = getMandarinEvaluator();
-  const transcription = await transcriber.transcribe(audioInput);
-  const report = await evaluator.evaluate({
-    challenge: dailyChallenge,
-    transcription,
-  });
+  try {
+    const transcriber = getSpeechTranscriber();
+    const evaluator = getMandarinEvaluator();
+    const transcription = await transcriber.transcribe(audioInput);
+    const report = await evaluator.evaluate({
+      challenge: dailyChallenge,
+      transcription,
+    });
 
-  return Response.json(report);
+    return Response.json(report);
+  } catch (error) {
+    console.error("/api/evaluate failed", error);
+
+    if (error instanceof AIProviderError) {
+      return Response.json({ error: error.message }, { status: error.status });
+    }
+
+    return Response.json(
+      { error: "The upstream AI service failed. Try again in a moment." },
+      { status: 502 },
+    );
+  }
 }
