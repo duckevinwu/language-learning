@@ -4,6 +4,7 @@ import OpenAI, { APIError, toFile } from "openai";
 import { AIProviderError } from "./errors";
 import type {
   AudioInput,
+  CorrectnessEvaluation,
   EvaluationInput,
   EvaluationReport,
   MandarinEvaluator,
@@ -86,12 +87,12 @@ export class OpenAIMandarinEvaluator implements MandarinEvaluator {
         model: EVALUATION_MODEL,
         input: buildEvaluationPrompt(input),
         instructions:
-          "You are a strict but helpful Mandarin tutor. Evaluate meaning, grammar, and naturalness against the English prompt and accepted Mandarin examples. Return JSON only.",
-        max_output_tokens: 700,
+          "You are a strict Mandarin evaluator. Judge only whether the user's transcript is semantically correct and grammatically natural. Do not generate a corrected translation, pinyin, or retry instruction. Return JSON only.",
+        max_output_tokens: 450,
         text: {
           format: {
             type: "json_schema",
-            name: "mandarin_evaluation_report",
+            name: "mandarin_correctness_evaluation",
             strict: true,
             schema: evaluationReportSchema,
           },
@@ -112,12 +113,12 @@ export class OpenAIMandarinEvaluator implements MandarinEvaluator {
 function toProviderError(error: unknown, stage: "transcription" | "evaluation") {
   if (error instanceof APIError) {
     const message = error.message || "OpenAI request failed.";
-    const status = error.status && error.status >= 400 && error.status < 500 ? error.status : 502;
+    const status =
+      error.status && error.status >= 400 && error.status < 500
+        ? error.status
+        : 502;
 
-    return new AIProviderError(
-      `OpenAI ${stage} failed: ${message}`,
-      status,
-    );
+    return new AIProviderError(`OpenAI ${stage} failed: ${message}`, status);
   }
 
   if (error instanceof Error) {
@@ -136,20 +137,23 @@ function toProviderError(error: unknown, stage: "transcription" | "evaluation") 
 function buildEvaluationPrompt(input: EvaluationInput) {
   return JSON.stringify(
     {
-      task: "Evaluate a Mandarin spoken-answer transcript.",
-      transcript: input.transcription.transcript,
-      confidence: input.transcription.confidence,
-      englishPrompt: input.challenge.englishPrompt,
-      acceptableMandarinExamples: input.challenge.acceptableMandarinExamples,
-      targetConcepts: input.challenge.targetConcepts,
+      task: "Evaluate a Mandarin spoken-answer transcript for correctness.",
+      userTranscript: input.userTranscript,
+      exampleMandarinAnswer: input.exampleMandarinAnswer,
+      englishPrompt: input.englishPrompt,
+      targetConcepts: input.targetConcepts,
       gradingRules: [
+        "The exampleMandarinAnswer is only one correct example, not the only valid answer.",
+        "Award full marks if userTranscript has the same meaning and is grammatically correct Mandarin, even when the wording differs from the example.",
         "Score 0-100 integers.",
-        "Grade meaning, grammar, and naturalness conservatively.",
-        "Do not penalize missing punctuation.",
-        "If the transcript is unrelated, empty, or not Mandarin, use low scores and provide a useful correction.",
-        "correctedMandarin must be a natural answer to the English prompt in Chinese characters.",
-        "pinyin must match correctedMandarin with tone marks or tone numbers.",
-        "coachingTip and retryInstruction must each be one concise English sentence.",
+        "meaningScore measures whether the user expressed the target meaning.",
+        "grammarScore measures Mandarin grammar and word order.",
+        "naturalnessScore measures whether the wording sounds natural to a Mandarin speaker.",
+        "overallScore should reflect the practical correctness of the user's answer.",
+        "Set isCorrect true when the answer would be accepted as correct in a speaking practice exercise.",
+        "Do not penalize missing punctuation or minor transcription punctuation differences.",
+        "Do not generate a corrected answer, pinyin, or retry instruction.",
+        "feedback must be one concise English sentence about correctness only.",
       ],
     },
     null,
@@ -161,26 +165,20 @@ const evaluationReportSchema = {
   type: "object",
   additionalProperties: false,
   required: [
-    "transcript",
+    "isCorrect",
     "overallScore",
     "meaningScore",
     "grammarScore",
     "naturalnessScore",
-    "correctedMandarin",
-    "pinyin",
-    "coachingTip",
-    "retryInstruction",
+    "feedback",
   ],
   properties: {
-    transcript: { type: "string" },
+    isCorrect: { type: "boolean" },
     overallScore: { type: "integer" },
     meaningScore: { type: "integer" },
     grammarScore: { type: "integer" },
     naturalnessScore: { type: "integer" },
-    correctedMandarin: { type: "string" },
-    pinyin: { type: "string" },
-    coachingTip: { type: "string" },
-    retryInstruction: { type: "string" },
+    feedback: { type: "string" },
   },
 } as const;
 
@@ -199,7 +197,7 @@ function parseEvaluationReport(
     );
   }
 
-  if (!isEvaluationReport(parsed)) {
+  if (!isCorrectnessEvaluation(parsed)) {
     throw new AIProviderError(
       "The evaluator returned incomplete feedback. Try again.",
       502,
@@ -207,28 +205,25 @@ function parseEvaluationReport(
   }
 
   return {
-    ...parsed,
-    transcript: parsed.transcript.trim() || input.transcription.transcript,
+    transcript: input.userTranscript,
+    isCorrect: parsed.isCorrect,
     overallScore: clampScore(parsed.overallScore),
     meaningScore: clampScore(parsed.meaningScore),
     grammarScore: clampScore(parsed.grammarScore),
     naturalnessScore: clampScore(parsed.naturalnessScore),
+    feedback: parsed.feedback.trim(),
   };
 }
 
-function isEvaluationReport(value: unknown): value is EvaluationReport {
+function isCorrectnessEvaluation(
+  value: unknown,
+): value is CorrectnessEvaluation {
   if (!value || typeof value !== "object") {
     return false;
   }
 
   const report = value as Record<string, unknown>;
-  const textFields = [
-    "transcript",
-    "correctedMandarin",
-    "pinyin",
-    "coachingTip",
-    "retryInstruction",
-  ];
+  const textFields = ["feedback"];
   const scoreFields = [
     "overallScore",
     "meaningScore",
@@ -237,6 +232,7 @@ function isEvaluationReport(value: unknown): value is EvaluationReport {
   ];
 
   return (
+    typeof report.isCorrect === "boolean" &&
     textFields.every((field) => typeof report[field] === "string") &&
     scoreFields.every((field) => Number.isFinite(report[field]))
   );

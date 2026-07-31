@@ -26,8 +26,10 @@ export async function POST(request: Request) {
     const evaluator = getMandarinEvaluator();
     const transcription = await transcriber.transcribe(audioInput);
     const report = await evaluator.evaluate({
-      challenge: dailyChallenge,
-      transcription,
+      userTranscript: transcription.transcript,
+      exampleMandarinAnswer: dailyChallenge.exampleMandarinAnswer,
+      englishPrompt: dailyChallenge.englishPrompt,
+      targetConcepts: dailyChallenge.targetConcepts,
     });
 
     return Response.json(report);

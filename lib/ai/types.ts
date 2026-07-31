@@ -1,7 +1,7 @@
 export type Challenge = {
   id: string;
   englishPrompt: string;
-  acceptableMandarinExamples: string[];
+  exampleMandarinAnswer: string;
   targetConcepts: string[];
 };
 
@@ -18,20 +18,23 @@ export type TranscriptionResult = {
 };
 
 export type EvaluationInput = {
-  challenge: Challenge;
-  transcription: TranscriptionResult;
+  userTranscript: string;
+  exampleMandarinAnswer: string;
+  englishPrompt?: string;
+  targetConcepts?: string[];
 };
 
-export type EvaluationReport = {
-  transcript: string;
+export type CorrectnessEvaluation = {
+  isCorrect: boolean;
   overallScore: number;
   meaningScore: number;
   grammarScore: number;
   naturalnessScore: number;
-  correctedMandarin: string;
-  pinyin: string;
-  coachingTip: string;
-  retryInstruction: string;
+  feedback: string;
+};
+
+export type EvaluationReport = CorrectnessEvaluation & {
+  transcript: string;
 };
 
 export interface SpeechTranscriber {

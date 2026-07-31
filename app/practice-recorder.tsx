@@ -244,15 +244,15 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
 
       <aside className="border-t border-[#ded7ca] pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
         {report ? (
-          <EvaluationView report={report} />
+          <EvaluationView challenge={challenge} report={report} />
         ) : (
           <div className="space-y-5 text-[#5d554b]">
             <p className="text-sm font-medium uppercase tracking-[0.18em]">
               Feedback
             </p>
             <p className="text-lg leading-8">
-              Record one short answer. The evaluator will return a
-              transcript, scores, and one concrete retry instruction.
+              Record one short answer. The evaluator will judge whether your
+              Mandarin is semantically and grammatically correct.
             </p>
           </div>
         )}
@@ -261,7 +261,13 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
   );
 }
 
-function EvaluationView({ report }: { report: EvaluationReport }) {
+function EvaluationView({
+  challenge,
+  report,
+}: {
+  challenge: Challenge;
+  report: EvaluationReport;
+}) {
   const scores = [
     ["Overall", report.overallScore],
     ["Meaning", report.meaningScore],
@@ -275,7 +281,12 @@ function EvaluationView({ report }: { report: EvaluationReport }) {
         <p className="text-sm font-medium uppercase tracking-[0.18em] text-[#756b5d]">
           Feedback
         </p>
-        <p className="mt-3 text-3xl font-semibold">{report.overallScore}/100</p>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <p className="text-3xl font-semibold">{report.overallScore}/100</p>
+          <p className="pb-1 text-sm font-medium text-[#756b5d]">
+            {report.isCorrect ? "Correct" : "Needs work"}
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -296,19 +307,14 @@ function EvaluationView({ report }: { report: EvaluationReport }) {
           <dd className="mt-1 text-xl text-[#1f1b16]">{report.transcript}</dd>
         </div>
         <div>
-          <dt className="font-semibold text-[#756b5d]">Correction</dt>
+          <dt className="font-semibold text-[#756b5d]">Example answer</dt>
           <dd className="mt-1 text-xl text-[#1f1b16]">
-            {report.correctedMandarin}
+            {challenge.exampleMandarinAnswer}
           </dd>
-          <dd className="text-[#5d554b]">{report.pinyin}</dd>
         </div>
         <div>
-          <dt className="font-semibold text-[#756b5d]">Coaching tip</dt>
-          <dd className="mt-1 text-[#1f1b16]">{report.coachingTip}</dd>
-        </div>
-        <div>
-          <dt className="font-semibold text-[#756b5d]">Retry</dt>
-          <dd className="mt-1 text-[#1f1b16]">{report.retryInstruction}</dd>
+          <dt className="font-semibold text-[#756b5d]">Correctness</dt>
+          <dd className="mt-1 text-[#1f1b16]">{report.feedback}</dd>
         </div>
       </dl>
     </div>
