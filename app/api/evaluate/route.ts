@@ -2,6 +2,7 @@ import { AIProviderError } from "@/lib/ai/errors";
 import { getMandarinEvaluator, getSpeechTranscriber } from "@/lib/ai/providers";
 import type { AudioInput } from "@/lib/ai/types";
 import { dailyChallenge } from "@/lib/challenge";
+import { romanizeMandarin } from "@/lib/mandarin/pinyin";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -25,14 +26,22 @@ export async function POST(request: Request) {
     const transcriber = getSpeechTranscriber();
     const evaluator = getMandarinEvaluator();
     const transcription = await transcriber.transcribe(audioInput);
-    const report = await evaluator.evaluate({
+    const correctness = await evaluator.evaluate({
       userTranscript: transcription.transcript,
       exampleMandarinAnswer: dailyChallenge.exampleMandarinAnswer,
       englishPrompt: dailyChallenge.englishPrompt,
       targetConcepts: dailyChallenge.targetConcepts,
     });
 
-    return Response.json(report);
+    return Response.json({
+      ...correctness,
+      transcript: transcription.transcript,
+      transcriptPinyin: romanizeMandarin(transcription.transcript),
+      exampleMandarinAnswer: dailyChallenge.exampleMandarinAnswer,
+      exampleMandarinPinyin: romanizeMandarin(
+        dailyChallenge.exampleMandarinAnswer,
+      ),
+    });
   } catch (error) {
     console.error("/api/evaluate failed", error);
 

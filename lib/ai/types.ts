@@ -35,6 +35,9 @@ export type CorrectnessEvaluation = {
 
 export type EvaluationReport = CorrectnessEvaluation & {
   transcript: string;
+  transcriptPinyin: string;
+  exampleMandarinAnswer: string;
+  exampleMandarinPinyin: string;
 };
 
 export interface SpeechTranscriber {
@@ -42,5 +45,5 @@ export interface SpeechTranscriber {
 }
 
 export interface MandarinEvaluator {
-  evaluate(input: EvaluationInput): Promise<EvaluationReport>;
+  evaluate(input: EvaluationInput): Promise<CorrectnessEvaluation>;
 }

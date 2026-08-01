@@ -1,6 +1,5 @@
 import type {
-  EvaluationInput,
-  EvaluationReport,
+  CorrectnessEvaluation,
   MandarinEvaluator,
   SpeechTranscriber,
   TranscriptionResult,
@@ -16,9 +15,8 @@ export class MockSpeechTranscriber implements SpeechTranscriber {
 }
 
 export class MockMandarinEvaluator implements MandarinEvaluator {
-  async evaluate(input: EvaluationInput): Promise<EvaluationReport> {
+  async evaluate(): Promise<CorrectnessEvaluation> {
     return {
-      transcript: input.userTranscript,
       isCorrect: true,
       overallScore: 92,
       meaningScore: 96,

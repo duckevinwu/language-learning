@@ -6,7 +6,6 @@ import type {
   AudioInput,
   CorrectnessEvaluation,
   EvaluationInput,
-  EvaluationReport,
   MandarinEvaluator,
   SpeechTranscriber,
   TranscriptionResult,
@@ -80,7 +79,7 @@ export class OpenAISpeechTranscriber implements SpeechTranscriber {
 }
 
 export class OpenAIMandarinEvaluator implements MandarinEvaluator {
-  async evaluate(input: EvaluationInput): Promise<EvaluationReport> {
+  async evaluate(input: EvaluationInput): Promise<CorrectnessEvaluation> {
     try {
       const client = getOpenAIClient();
       const response = await client.responses.create({
@@ -99,7 +98,7 @@ export class OpenAIMandarinEvaluator implements MandarinEvaluator {
         },
       });
 
-      return parseEvaluationReport(response.output_text, input);
+      return parseEvaluationReport(response.output_text);
     } catch (error) {
       if (error instanceof AIProviderError) {
         throw error;
@@ -182,10 +181,7 @@ const evaluationReportSchema = {
   },
 } as const;
 
-function parseEvaluationReport(
-  outputText: string,
-  input: EvaluationInput,
-): EvaluationReport {
+function parseEvaluationReport(outputText: string): CorrectnessEvaluation {
   let parsed: unknown;
 
   try {
@@ -205,7 +201,6 @@ function parseEvaluationReport(
   }
 
   return {
-    transcript: input.userTranscript,
     isCorrect: parsed.isCorrect,
     overallScore: clampScore(parsed.overallScore),
     meaningScore: clampScore(parsed.meaningScore),

@@ -244,7 +244,7 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
 
       <aside className="border-t border-[#ded7ca] pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
         {report ? (
-          <EvaluationView challenge={challenge} report={report} />
+          <EvaluationView report={report} />
         ) : (
           <div className="space-y-5 text-[#5d554b]">
             <p className="text-sm font-medium uppercase tracking-[0.18em]">
@@ -262,10 +262,8 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
 }
 
 function EvaluationView({
-  challenge,
   report,
 }: {
-  challenge: Challenge;
   report: EvaluationReport;
 }) {
   const scores = [
@@ -305,11 +303,17 @@ function EvaluationView({
         <div>
           <dt className="font-semibold text-[#756b5d]">Transcript</dt>
           <dd className="mt-1 text-xl text-[#1f1b16]">{report.transcript}</dd>
+          <dd className="mt-1 text-sm text-[#756b5d]">
+            {report.transcriptPinyin}
+          </dd>
         </div>
         <div>
           <dt className="font-semibold text-[#756b5d]">Example answer</dt>
           <dd className="mt-1 text-xl text-[#1f1b16]">
-            {challenge.exampleMandarinAnswer}
+            {report.exampleMandarinAnswer}
+          </dd>
+          <dd className="mt-1 text-sm text-[#756b5d]">
+            {report.exampleMandarinPinyin}
           </dd>
         </div>
         <div>
