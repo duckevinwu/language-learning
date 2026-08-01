@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Challenge, EvaluationReport } from "@/lib/ai/types";
+import type { EvaluationReport, PublicChallenge } from "@/lib/ai/types";
 
 type RecorderStatus =
   | "idle"
@@ -11,15 +11,17 @@ type RecorderStatus =
   | "complete";
 
 type PracticeRecorderProps = {
-  challenge: Challenge;
+  challenge: PublicChallenge;
 };
 
 export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
+  const [currentChallenge, setCurrentChallenge] = useState(challenge);
   const [status, setStatus] = useState<RecorderStatus>("idle");
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<EvaluationReport | null>(null);
+  const [isLoadingChallenge, setIsLoadingChallenge] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -119,6 +121,47 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
     setStatus("idle");
   }
 
+  function discardPracticeState() {
+    const recorder = mediaRecorderRef.current;
+
+    if (recorder?.state === "recording") {
+      recorder.onstop = null;
+      recorder.stop();
+    }
+
+    stopStream();
+    clearRecording();
+    setReport(null);
+    setError(null);
+    setStatus("idle");
+  }
+
+  async function loadRandomChallenge() {
+    setIsLoadingChallenge(true);
+    discardPracticeState();
+
+    try {
+      const response = await fetch("/api/challenges/random", {
+        cache: "no-store",
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "Could not load a random prompt.");
+      }
+
+      setCurrentChallenge(payload as PublicChallenge);
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Could not load a random prompt.",
+      );
+    } finally {
+      setIsLoadingChallenge(false);
+    }
+  }
+
   async function submitRecording() {
     if (!audioBlob || status === "recording") {
       return;
@@ -130,6 +173,7 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
 
     const formData = new FormData();
     formData.append("audio", audioBlob, "mandarin-practice.webm");
+    formData.append("challengeId", currentChallenge.id);
 
     try {
       const response = await fetch("/api/evaluate", {
@@ -156,6 +200,7 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
 
   const canSubmit = Boolean(audioBlob) && status !== "recording";
   const isBusy = status === "submitting";
+  const controlsDisabled = isBusy || isLoadingChallenge;
 
   return (
     <div className="grid flex-1 content-center gap-8 py-10 lg:grid-cols-[1fr_0.9fr] lg:py-16">
@@ -163,16 +208,24 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
         <div className="space-y-4">
           <p className="text-sm font-medium text-[#756b5d]">Translate aloud</p>
           <h2 className="max-w-2xl text-4xl font-semibold leading-tight sm:text-5xl">
-            {challenge.englishPrompt}
+            {currentChallenge.englishPrompt}
           </h2>
         </div>
 
         <div className="space-y-3 border-y border-[#ded7ca] py-5">
-          <p className="text-sm font-medium text-[#756b5d]">
-            Target concepts
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="mr-1 text-sm font-medium text-[#756b5d]">
+              Target concepts
+            </p>
+            <span className="rounded-full border border-[#cfc5b6] bg-[#fbf8f1] px-3 py-1 text-xs capitalize text-[#4e473e]">
+              {currentChallenge.category}
+            </span>
+            <span className="rounded-full border border-[#cfc5b6] bg-[#fbf8f1] px-3 py-1 text-xs capitalize text-[#4e473e]">
+              {currentChallenge.difficulty}
+            </span>
+          </div>
           <div className="flex flex-wrap gap-2">
-            {challenge.targetConcepts.map((concept) => (
+            {currentChallenge.targetConcepts.map((concept) => (
               <span
                 key={concept}
                 className="rounded-full border border-[#cfc5b6] bg-[#fbf8f1] px-3 py-1 text-sm text-[#4e473e]"
@@ -184,10 +237,19 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
         </div>
 
         <div className="flex flex-wrap gap-3">
+          <button
+            className="h-12 rounded-md border border-[#bfb4a4] px-5 text-sm font-semibold text-[#2c2924] transition hover:bg-[#eee7dc] disabled:cursor-not-allowed disabled:text-[#9c9286]"
+            disabled={controlsDisabled}
+            onClick={loadRandomChallenge}
+            type="button"
+          >
+            {isLoadingChallenge ? "Loading..." : "Random prompt"}
+          </button>
+
           {status !== "recording" ? (
             <button
               className="h-12 rounded-md bg-[#2c2924] px-5 text-sm font-semibold text-white transition hover:bg-[#403a33] disabled:cursor-not-allowed disabled:bg-[#aaa197]"
-              disabled={isBusy}
+              disabled={controlsDisabled}
               onClick={startRecording}
               type="button"
             >
@@ -205,7 +267,7 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
 
           <button
             className="h-12 rounded-md border border-[#bfb4a4] px-5 text-sm font-semibold text-[#2c2924] transition hover:bg-[#eee7dc] disabled:cursor-not-allowed disabled:text-[#9c9286]"
-            disabled={!canSubmit || isBusy}
+            disabled={!canSubmit || controlsDisabled}
             onClick={submitRecording}
             type="button"
           >
@@ -215,7 +277,7 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
           {(audioBlob || report || error) && (
             <button
               className="h-12 rounded-md px-5 text-sm font-semibold text-[#5d554b] transition hover:bg-[#eee7dc]"
-              disabled={isBusy}
+              disabled={controlsDisabled}
               onClick={resetPractice}
               type="button"
             >

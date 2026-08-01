@@ -8,7 +8,7 @@ import type {
 export class MockSpeechTranscriber implements SpeechTranscriber {
   async transcribe(): Promise<TranscriptionResult> {
     return {
-      transcript: "我学中文学了三个月。",
+      transcript: "我在学中文。",
       confidence: 0.94,
     };
   }

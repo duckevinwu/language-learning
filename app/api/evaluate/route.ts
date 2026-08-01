@@ -1,12 +1,29 @@
 import { AIProviderError } from "@/lib/ai/errors";
 import { getMandarinEvaluator, getSpeechTranscriber } from "@/lib/ai/providers";
-import type { AudioInput, CorrectnessEvaluation } from "@/lib/ai/types";
-import { dailyChallenge } from "@/lib/challenge";
+import type { AudioInput, Challenge, CorrectnessEvaluation } from "@/lib/ai/types";
+import { getChallengeById } from "@/lib/challenge";
 import { romanizeMandarin } from "@/lib/mandarin/pinyin";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
   const audio = formData.get("audio");
+  const challengeId = formData.get("challengeId");
+
+  if (typeof challengeId !== "string" || challengeId.trim().length === 0) {
+    return Response.json(
+      { error: "A valid challengeId is required." },
+      { status: 400 },
+    );
+  }
+
+  const challenge = getChallengeById(challengeId);
+
+  if (!challenge) {
+    return Response.json(
+      { error: "The requested challenge could not be found." },
+      { status: 400 },
+    );
+  }
 
   if (!(audio instanceof File) || audio.size === 0) {
     return Response.json(
@@ -28,28 +45,32 @@ export async function POST(request: Request) {
 
     if (!isMandarinTranscript(transcription.transcript)) {
       return Response.json(
-        buildEvaluationReport(transcription.transcript, {
-          isCorrect: false,
-          overallScore: 0,
-          meaningScore: 0,
-          grammarScore: 0,
-          naturalnessScore: 0,
-          feedback:
-            "Answer in Mandarin Chinese; English or another language cannot be accepted for this exercise.",
-        }),
+        buildEvaluationReport(
+          transcription.transcript,
+          {
+            isCorrect: false,
+            overallScore: 0,
+            meaningScore: 0,
+            grammarScore: 0,
+            naturalnessScore: 0,
+            feedback:
+              "Answer in Mandarin Chinese; English or another language cannot be accepted for this exercise.",
+          },
+          challenge,
+        ),
       );
     }
 
     const evaluator = getMandarinEvaluator();
     const correctness = await evaluator.evaluate({
       userTranscript: transcription.transcript,
-      exampleMandarinAnswer: dailyChallenge.exampleMandarinAnswer,
-      englishPrompt: dailyChallenge.englishPrompt,
-      targetConcepts: dailyChallenge.targetConcepts,
+      exampleMandarinAnswer: challenge.exampleMandarinAnswer,
+      englishPrompt: challenge.englishPrompt,
+      targetConcepts: challenge.targetConcepts,
     });
 
     return Response.json(
-      buildEvaluationReport(transcription.transcript, correctness),
+      buildEvaluationReport(transcription.transcript, correctness, challenge),
     );
   } catch (error) {
     console.error("/api/evaluate failed", error);
@@ -79,12 +100,13 @@ function isMandarinTranscript(transcript: string) {
 function buildEvaluationReport(
   transcript: string,
   correctness: CorrectnessEvaluation,
+  challenge: Challenge,
 ) {
   return {
     ...correctness,
     transcript,
     transcriptPinyin: romanizeMandarin(transcript),
-    exampleMandarinAnswer: dailyChallenge.exampleMandarinAnswer,
-    exampleMandarinPinyin: romanizeMandarin(dailyChallenge.exampleMandarinAnswer),
+    exampleMandarinAnswer: challenge.exampleMandarinAnswer,
+    exampleMandarinPinyin: romanizeMandarin(challenge.exampleMandarinAnswer),
   };
 }

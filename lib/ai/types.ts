@@ -2,8 +2,13 @@ export type Challenge = {
   id: string;
   englishPrompt: string;
   exampleMandarinAnswer: string;
+  category: string;
+  difficulty: "beginner";
   targetConcepts: string[];
+  notes?: string;
 };
+
+export type PublicChallenge = Omit<Challenge, "exampleMandarinAnswer">;
 
 export type AudioInput = {
   data: ArrayBuffer;
