@@ -1,6 +1,6 @@
 import { AIProviderError } from "@/lib/ai/errors";
 import { getMandarinEvaluator, getSpeechTranscriber } from "@/lib/ai/providers";
-import type { AudioInput } from "@/lib/ai/types";
+import type { AudioInput, CorrectnessEvaluation } from "@/lib/ai/types";
 import { dailyChallenge } from "@/lib/challenge";
 import { romanizeMandarin } from "@/lib/mandarin/pinyin";
 
@@ -24,8 +24,23 @@ export async function POST(request: Request) {
 
   try {
     const transcriber = getSpeechTranscriber();
-    const evaluator = getMandarinEvaluator();
     const transcription = await transcriber.transcribe(audioInput);
+
+    if (!isMandarinTranscript(transcription.transcript)) {
+      return Response.json(
+        buildEvaluationReport(transcription.transcript, {
+          isCorrect: false,
+          overallScore: 0,
+          meaningScore: 0,
+          grammarScore: 0,
+          naturalnessScore: 0,
+          feedback:
+            "Answer in Mandarin Chinese; English or another language cannot be accepted for this exercise.",
+        }),
+      );
+    }
+
+    const evaluator = getMandarinEvaluator();
     const correctness = await evaluator.evaluate({
       userTranscript: transcription.transcript,
       exampleMandarinAnswer: dailyChallenge.exampleMandarinAnswer,
@@ -33,15 +48,9 @@ export async function POST(request: Request) {
       targetConcepts: dailyChallenge.targetConcepts,
     });
 
-    return Response.json({
-      ...correctness,
-      transcript: transcription.transcript,
-      transcriptPinyin: romanizeMandarin(transcription.transcript),
-      exampleMandarinAnswer: dailyChallenge.exampleMandarinAnswer,
-      exampleMandarinPinyin: romanizeMandarin(
-        dailyChallenge.exampleMandarinAnswer,
-      ),
-    });
+    return Response.json(
+      buildEvaluationReport(transcription.transcript, correctness),
+    );
   } catch (error) {
     console.error("/api/evaluate failed", error);
 
@@ -54,4 +63,28 @@ export async function POST(request: Request) {
       { status: 502 },
     );
   }
+}
+
+const hanCharacterPattern = /\p{Script=Han}/u;
+const nonMandarinScriptPattern =
+  /[\p{Script=Latin}\p{Script=Cyrillic}\p{Script=Greek}\p{Script=Hangul}\p{Script=Hiragana}\p{Script=Katakana}]/u;
+
+function isMandarinTranscript(transcript: string) {
+  return (
+    hanCharacterPattern.test(transcript) &&
+    !nonMandarinScriptPattern.test(transcript)
+  );
+}
+
+function buildEvaluationReport(
+  transcript: string,
+  correctness: CorrectnessEvaluation,
+) {
+  return {
+    ...correctness,
+    transcript,
+    transcriptPinyin: romanizeMandarin(transcript),
+    exampleMandarinAnswer: dailyChallenge.exampleMandarinAnswer,
+    exampleMandarinPinyin: romanizeMandarin(dailyChallenge.exampleMandarinAnswer),
+  };
 }
