@@ -2,7 +2,10 @@ import { AIProviderError } from "@/lib/ai/errors";
 import { getMandarinEvaluator, getSpeechTranscriber } from "@/lib/ai/providers";
 import type { AudioInput, Challenge, CorrectnessEvaluation } from "@/lib/ai/types";
 import { getChallengeById } from "@/lib/challenge";
-import { romanizeMandarin } from "@/lib/mandarin/pinyin";
+import {
+  segmentMandarinWithPinyin,
+  romanizeMandarin,
+} from "@/lib/mandarin/pinyin";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -54,7 +57,7 @@ export async function POST(request: Request) {
             grammarScore: 0,
             naturalnessScore: 0,
             feedback:
-              "Answer in Mandarin Chinese; English or another language cannot be accepted for this exercise.",
+              "Practice this one in Mandarin Chinese. Try saying the full idea with Chinese characters and Mandarin word order; English or another language cannot be accepted for this exercise.",
           },
           challenge,
         ),
@@ -104,6 +107,7 @@ function buildEvaluationReport(
 ) {
   return {
     ...correctness,
+    feedbackSegments: segmentMandarinWithPinyin(correctness.feedback),
     transcript,
     transcriptPinyin: romanizeMandarin(transcript),
     exampleMandarinAnswer: challenge.exampleMandarinAnswer,

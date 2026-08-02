@@ -313,8 +313,7 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
               Feedback
             </p>
             <p className="text-lg leading-8">
-              Record one short answer. The evaluator will judge whether your
-              Mandarin is semantically and grammatically correct.
+              Record one short answer. You will get a short coaching note on grammar, vocabulary, or natural phrasing.
             </p>
           </div>
         )}
@@ -323,6 +322,39 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
   );
 }
 
+function FeedbackText({
+  fallback,
+  segments,
+}: {
+  fallback: string;
+  segments?: EvaluationReport["feedbackSegments"];
+}) {
+  if (!segments?.length) {
+    return <>{fallback}</>;
+  }
+
+  return (
+    <span className="leading-9">
+      {segments.map((segment, index) => {
+        if (segment.type === "text") {
+          return segment.text;
+        }
+
+        return (
+          <ruby
+            className="mx-0.5 whitespace-nowrap text-base font-medium"
+            key={`${segment.text}-${index}`}
+          >
+            {segment.text}
+            <rt className="text-[0.65em] font-normal text-[#756b5d]">
+              {segment.pinyin}
+            </rt>
+          </ruby>
+        );
+      })}
+    </span>
+  );
+}
 function EvaluationView({
   report,
 }: {
@@ -379,8 +411,13 @@ function EvaluationView({
           </dd>
         </div>
         <div>
-          <dt className="font-semibold text-[#756b5d]">Correctness</dt>
-          <dd className="mt-1 text-[#1f1b16]">{report.feedback}</dd>
+          <dt className="font-semibold text-[#756b5d]">Coaching</dt>
+          <dd className="mt-2 text-[#1f1b16]">
+            <FeedbackText
+              fallback={report.feedback}
+              segments={report.feedbackSegments}
+            />
+          </dd>
         </div>
       </dl>
     </div>

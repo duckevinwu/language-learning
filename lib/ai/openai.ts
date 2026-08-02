@@ -86,8 +86,8 @@ export class OpenAIMandarinEvaluator implements MandarinEvaluator {
         model: EVALUATION_MODEL,
         input: buildEvaluationPrompt(input),
         instructions:
-          "You are a strict Mandarin evaluator. Judge only whether the user's transcript is semantically correct and grammatically natural. Do not generate a corrected translation, pinyin, or retry instruction. Return JSON only.",
-        max_output_tokens: 450,
+          "You are a strict but helpful Mandarin coach. Score the user's transcript, then write learner-facing coaching that teaches the most important improvement. Return JSON only.",
+        max_output_tokens: 700,
         text: {
           format: {
             type: "json_schema",
@@ -151,8 +151,12 @@ function buildEvaluationPrompt(input: EvaluationInput) {
         "overallScore should reflect the practical correctness of the user's answer.",
         "Set isCorrect true when the answer would be accepted as correct in a speaking practice exercise.",
         "Do not penalize missing punctuation or minor transcription punctuation differences.",
-        "Do not generate a corrected answer, pinyin, or retry instruction.",
-        "feedback must be one concise English sentence about correctness only.",
+        "feedback is for coaching the learner, not explaining why you gave the score.",
+        "If there is a grammar mistake, give the corrected Mandarin phrase or sentence and a mini lesson explaining the grammar rule or word order in English.",
+        "If there is a vocabulary mix-up, name the better word or phrase, explain the difference in English, and show the corrected Mandarin phrase or sentence.",
+        "If the answer is correct, reinforce one useful pattern from the user's answer and, if helpful, suggest one natural alternate phrasing.",
+        "Keep feedback to 2-4 concise English sentences. Include Chinese characters only for corrected or example phrases. Do not include pinyin; the app renders pinyin above Chinese phrases automatically.",
+        "Do not mention scores, points, grading categories, or evaluator reasoning in feedback.",
       ],
     },
     null,

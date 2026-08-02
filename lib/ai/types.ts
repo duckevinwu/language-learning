@@ -29,6 +29,10 @@ export type EvaluationInput = {
   targetConcepts?: string[];
 };
 
+export type FeedbackSegment =
+  | { type: "text"; text: string }
+  | { type: "mandarin"; text: string; pinyin: string };
+
 export type CorrectnessEvaluation = {
   isCorrect: boolean;
   overallScore: number;
@@ -39,6 +43,7 @@ export type CorrectnessEvaluation = {
 };
 
 export type EvaluationReport = CorrectnessEvaluation & {
+  feedbackSegments: FeedbackSegment[];
   transcript: string;
   transcriptPinyin: string;
   exampleMandarinAnswer: string;

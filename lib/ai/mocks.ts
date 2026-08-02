@@ -8,7 +8,7 @@ import type {
 export class MockSpeechTranscriber implements SpeechTranscriber {
   async transcribe(): Promise<TranscriptionResult> {
     return {
-      transcript: "我在学中文。",
+      transcript: "\u6211\u5728\u5b66\u4e2d\u6587\u3002",
       confidence: 0.94,
     };
   }
@@ -23,7 +23,7 @@ export class MockMandarinEvaluator implements MandarinEvaluator {
       grammarScore: 90,
       naturalnessScore: 90,
       feedback:
-        "Your answer expresses the same meaning as the example and is grammatically natural Mandarin.",
+        "Good use of \u6211\u5728\u5b66\u4e2d\u6587 to say what you are currently doing. To sound a little more natural, you can also say \u6211\u6b63\u5728\u5b66\u4e2d\u6587, where \u6b63\u5728 emphasizes an action in progress.",
     };
   }
 }
