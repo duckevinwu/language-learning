@@ -28,7 +28,7 @@ export class OpenAIGptAudioMandarinEvaluator implements AudioMandarinEvaluator {
           {
             role: "system",
             content:
-              "You are a strict but helpful Mandarin speaking coach. Listen to the learner's audio directly and grade what was actually said, not what the learner may have intended. Do not infer a correct answer from a few matching words. Call the provided tool with JSON arguments only. Only provide pronunciation feedback when there is a specific issue to fix.",
+              "You are a strict but helpful Mandarin speaking coach. Listen to the learner's audio directly and grade what was actually said, not what the learner may have intended. Do not infer, complete, or correct the learner's answer from the English prompt, target concepts, or example answer. Evaluate pronunciation and tones as a separate task; intelligible speech can still need tone correction, but minor or uncertain accent-level issues should not force feedback. Call the provided tool with JSON arguments only.",
           },
           {
             role: "user",
@@ -101,6 +101,7 @@ const mandarinAudioEvaluationTool = {
         "toneScore",
         "pronunciationNeedsWork",
         "feedback",
+        "pronunciationFeedback",
       ],
       properties: {
         transcript: {
@@ -119,12 +120,24 @@ const mandarinAudioEvaluationTool = {
         },
         grammarScore: { type: "integer", minimum: 0, maximum: 100 },
         naturalnessScore: { type: "integer", minimum: 0, maximum: 100 },
-        pronunciationScore: { type: "integer", minimum: 0, maximum: 100 },
-        toneScore: { type: "integer", minimum: 0, maximum: 100 },
+        pronunciationScore: {
+          type: "integer",
+          minimum: 0,
+          maximum: 100,
+          description:
+            "Use the full 0-100 range for pronunciation clarity. 85+ means genuinely strong pronunciation, not merely understandable speech.",
+        },
+        toneScore: {
+          type: "integer",
+          minimum: 0,
+          maximum: 100,
+          description:
+            "Use the full 0-100 range for Mandarin tone accuracy. 85+ means tones are genuinely strong, not merely intelligible.",
+        },
         pronunciationNeedsWork: {
           type: "boolean",
           description:
-            "True only when there is a specific pronunciation or tone issue worth correcting.",
+            "True only when there is a clear, material initial, final, rhythm, or tone issue that a learner should fix next. False for minor, uncertain, or accent-level variation.",
         },
         feedback: {
           type: "string",
@@ -134,7 +147,7 @@ const mandarinAudioEvaluationTool = {
         pronunciationFeedback: {
           type: "string",
           description:
-            "Required when pronunciationNeedsWork is true. Name the exact word or syllable, target pinyin with tone numbers, and the observed issue. Omit or return an empty string when pronunciationNeedsWork is false.",
+            "Always return a string. When pronunciationNeedsWork is true, name one high-impact word or syllable, target pinyin with tone numbers, and the observed issue. Return an empty string when pronunciationNeedsWork is false.",
         },
       },
     },
@@ -150,29 +163,38 @@ function buildAudioEvaluationPrompt(challenge: Challenge) {
       targetConcepts: challenge.targetConcepts,
       gradingRules: [
         "Listen to the audio directly; do not assume the learner said the example answer or any ideal answer.",
+        "First transcribe the learner literally, then evaluate that transcript against the English prompt. Never use the exampleMandarinAnswer or targetConcepts to fill in words, modifiers, or meaning that are missing from the audio.",
         "Transcribe literally. Do not silently repair, normalize, complete, or reinterpret a broken utterance into a good Mandarin sentence.",
         "Grade only the actual spoken content in transcript. A few correct characters, words, or target concepts are not enough for a high score if the full prompt meaning is missing.",
         "If they mostly did not speak Mandarin, transcribe what you can and score correctness very low.",
         "The exampleMandarinAnswer is only one correct example, not the only valid answer.",
         "Award full meaning marks only if the spoken answer expresses all essential parts of the English prompt, even when wording differs from the example.",
-        "Before scoring, identify the English prompt's essential meaning slots: who/subject, action or state, object/complement, time/place, negation, question intent, and any quantity or politeness requirement that changes meaning.",
-        "meaningScore must be low when any essential meaning slot is missing or wrong. Do not give credit for matching vocabulary that does not form the requested meaning.",
+        "Before scoring, identify the English prompt's essential meaning slots: who/subject, action or state, object/complement, direction, location, time/aspect, negation, question intent, quantity, and any modifier or politeness requirement that changes the requested meaning.",
+        "Compare the transcript slot by slot with the English prompt. Equivalent Mandarin wording is fine, but each required slot must be present in what the learner actually said.",
+        "A fluent or grammatical Mandarin sentence can still be incorrect if it is more generic than the prompt, omits a required modifier/detail, changes the requested action/state, or answers only part of the prompt.",
+        "meaningScore must be low when any essential meaning slot is missing, weaker, more generic, or wrong. Do not give credit for matching vocabulary that does not form the requested meaning.",
         "If the answer contains only isolated correct words or characters but does not form a coherent answer to the prompt, set isCorrect false, meaningScore 0-35, and overallScore 0-45.",
         "If the answer is a coherent Mandarin sentence but answers a different prompt or changes the core meaning, set isCorrect false, meaningScore 0-50, and overallScore 0-60.",
+        "If the answer captures the broad topic but omits one required slot such as direction, negation, time, place, quantity, object, question intent, or a meaning-changing modifier, set isCorrect false, meaningScore 40-70, and overallScore 45-75 depending on severity.",
         "If the answer gets the core meaning but has notable grammar or word-choice errors, set meaningScore 60-85 and overallScore according to severity.",
         "Only use overallScore above 80 when the answer is both semantically correct and mostly grammatical. Pronunciation alone cannot make a wrong answer correct.",
         "Score 0-100 integers for all score fields.",
         "meaningScore measures whether the learner expressed the target meaning.",
         "grammarScore measures Mandarin grammar and word order.",
         "naturalnessScore measures whether the wording sounds natural to a Mandarin speaker.",
-        "pronunciationScore measures pronunciation clarity, initials, finals, rhythm, and intelligibility.",
-        "toneScore measures Mandarin tone accuracy and tone flow.",
+        "pronunciationScore measures pronunciation clarity, initials, finals, rhythm, and intelligibility. Use the full scale; 85+ means genuinely strong pronunciation, not merely understandable speech. Scores in the 80s may still be acceptable without feedback when issues are minor or uncertain.",
+        "toneScore measures Mandarin tone accuracy and tone flow. Use the full scale; 85+ means genuinely strong tone production, not merely intelligible speech. Scores in the 80s may still be acceptable without feedback when tone issues are minor or uncertain.",
+        "Pronunciation/tone score calibration: 95-100 = accurate and natural; 85-94 = strong with only minor accent or uncertainty; 70-84 = understandable but with at least one noticeable tone/pronunciation issue; 50-69 = repeated or meaning-risking pronunciation/tone problems; below 50 = hard to understand or many wrong tones.",
+        "If any syllable has a clear wrong tone category, cap toneScore at 79. If multiple syllables have clear wrong tone categories, cap toneScore at 69. If tones are mostly flat or missing, cap toneScore at 74.",
+        "If an initial/final/rhythm issue makes a syllable sound like a different Mandarin syllable, cap pronunciationScore at 79. If this happens repeatedly, cap pronunciationScore at 69.",
         "overallScore should reflect practical correctness of the spoken answer. It must be no more than 10 points above meaningScore unless meaningScore is at least 85.",
         "Set isCorrect true only when the answer would be accepted as correct in a speaking practice exercise.",
         "feedback is learner-facing coaching on correctness or phrasing. Keep it to 2-4 concise English sentences. Include Chinese characters only for corrected or example phrases; do not include pinyin.",
-        "Set pronunciationNeedsWork false when pronunciation and tones are clear enough that there is no specific correction worth giving. In that case, omit pronunciationFeedback or return an empty string.",
-        "Set pronunciationNeedsWork true only when you can name a specific pronunciation or tone issue heard in the audio.",
-        "When pronunciationNeedsWork is true, pronunciationFeedback must be actionable and specific. Use 1-2 concise English sentences.",
+        "Audit the transcript for tones, initials, finals, and rhythm; do this even when the answer meaning is correct and easy to understand.",
+        "Set pronunciationNeedsWork true only for a clear, material issue: a wrong tone category, missing/flattened tone contour, unclear initial/final, or rhythm issue that could mislead a listener or is worth fixing next.",
+        "Set pronunciationNeedsWork false for slight accent, recording uncertainty, one-off variation, or issues too minor to be the learner\'s next focus. In that case, return an empty pronunciationFeedback string.",
+        "If toneScore or pronunciationScore is below 80, pronunciationNeedsWork must be true. If both are 80 or higher, give pronunciationFeedback only when there is one clear high-impact correction.",
+        "When pronunciationNeedsWork is true, pronunciationFeedback must be actionable and specific. Use 1-2 concise English sentences and mention only the single highest-impact correction.",
         "Pronunciation feedback must include the exact Chinese word/phrase or syllable to fix, target pinyin with tone numbers, and what likely went wrong in the audio.",
         "Prefer this shape: For \u5728\u54ea\u513f (zai4 nar3), keep \u5728 as a sharp falling 4th tone and let \u54ea\u513f dip then rise for 3rd tone.",
         "Do not include a drill or practice routine in pronunciationFeedback.",
@@ -264,7 +286,7 @@ function isSpecificPronunciationFeedback(feedback: string | undefined) {
   }
 
   const hasChinese = /\p{Script=Han}/u.test(feedback);
-  const hasToneNumber = /\b[a-züv]+[1-5]\b/i.test(feedback);
+  const hasToneNumber = /\b[a-z\u00fc\u00dcv:]+[1-5]\b/i.test(feedback);
 
   return hasChinese && hasToneNumber;
 }
