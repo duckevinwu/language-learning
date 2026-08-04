@@ -17,6 +17,8 @@ export type AudioInput = {
   size: number;
 };
 
+export type EvaluationMode = "standard" | "gpt-audio";
+
 export type TranscriptionResult = {
   transcript: string;
   confidence: number;
@@ -42,12 +44,32 @@ export type CorrectnessEvaluation = {
   feedback: string;
 };
 
+export type AudioEvaluationInput = {
+  audio: AudioInput;
+  challenge: Challenge;
+};
+
+export type AudioCorrectnessEvaluation = CorrectnessEvaluation & {
+  transcript: string;
+  pronunciationScore: number;
+  toneScore: number;
+  pronunciationNeedsWork: boolean;
+  pronunciationFeedback?: string;
+  pronunciationProvider: string;
+};
+
 export type EvaluationReport = CorrectnessEvaluation & {
   feedbackSegments: FeedbackSegment[];
   transcript: string;
   transcriptPinyin: string;
   exampleMandarinAnswer: string;
   exampleMandarinPinyin: string;
+  evaluationMode?: EvaluationMode;
+  pronunciationScore?: number;
+  toneScore?: number;
+  pronunciationNeedsWork?: boolean;
+  pronunciationFeedback?: string;
+  pronunciationProvider?: string;
 };
 
 export interface SpeechTranscriber {
@@ -56,4 +78,8 @@ export interface SpeechTranscriber {
 
 export interface MandarinEvaluator {
   evaluate(input: EvaluationInput): Promise<CorrectnessEvaluation>;
+}
+
+export interface AudioMandarinEvaluator {
+  evaluate(input: AudioEvaluationInput): Promise<AudioCorrectnessEvaluation>;
 }

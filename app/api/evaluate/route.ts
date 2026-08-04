@@ -1,6 +1,16 @@
 import { AIProviderError } from "@/lib/ai/errors";
-import { getMandarinEvaluator, getSpeechTranscriber } from "@/lib/ai/providers";
-import type { AudioInput, Challenge, CorrectnessEvaluation } from "@/lib/ai/types";
+import {
+  getAudioMandarinEvaluator,
+  getMandarinEvaluator,
+  getSpeechTranscriber,
+} from "@/lib/ai/providers";
+import type {
+  AudioCorrectnessEvaluation,
+  AudioInput,
+  Challenge,
+  CorrectnessEvaluation,
+  EvaluationMode,
+} from "@/lib/ai/types";
 import { getChallengeById } from "@/lib/challenge";
 import {
   segmentMandarinWithPinyin,
@@ -11,6 +21,7 @@ export async function POST(request: Request) {
   const formData = await request.formData();
   const audio = formData.get("audio");
   const challengeId = formData.get("challengeId");
+  const evaluationMode = parseEvaluationMode(formData.get("evaluationMode"));
 
   if (typeof challengeId !== "string" || challengeId.trim().length === 0) {
     return Response.json(
@@ -43,6 +54,30 @@ export async function POST(request: Request) {
   };
 
   try {
+    if (evaluationMode === "gpt-audio") {
+      if (!isWavAudio(audioInput)) {
+        return Response.json(
+          { error: "GPT audio evaluation requires a WAV recording." },
+          { status: 400 },
+        );
+      }
+
+      const evaluator = getAudioMandarinEvaluator();
+      const audioCorrectness = await evaluator.evaluate({
+        audio: audioInput,
+        challenge,
+      });
+
+      return Response.json(
+        buildEvaluationReport(
+          audioCorrectness.transcript,
+          audioCorrectness,
+          challenge,
+          evaluationMode,
+        ),
+      );
+    }
+
     const transcriber = getSpeechTranscriber();
     const transcription = await transcriber.transcribe(audioInput);
 
@@ -60,6 +95,7 @@ export async function POST(request: Request) {
               "Practice this one in Mandarin Chinese. Try saying the full idea with Chinese characters and Mandarin word order; English or another language cannot be accepted for this exercise.",
           },
           challenge,
+          evaluationMode,
         ),
       );
     }
@@ -73,7 +109,12 @@ export async function POST(request: Request) {
     });
 
     return Response.json(
-      buildEvaluationReport(transcription.transcript, correctness, challenge),
+      buildEvaluationReport(
+        transcription.transcript,
+        correctness,
+        challenge,
+        evaluationMode,
+      ),
     );
   } catch (error) {
     console.error("/api/evaluate failed", error);
@@ -89,6 +130,18 @@ export async function POST(request: Request) {
   }
 }
 
+function parseEvaluationMode(value: FormDataEntryValue | null): EvaluationMode {
+  return value === "gpt-audio" ? "gpt-audio" : "standard";
+}
+
+function isWavAudio(audio: AudioInput) {
+  return (
+    audio.mimeType === "audio/wav" ||
+    audio.mimeType === "audio/wave" ||
+    audio.filename.toLowerCase().endsWith(".wav")
+  );
+}
+
 const hanCharacterPattern = /\p{Script=Han}/u;
 const nonMandarinScriptPattern =
   /[\p{Script=Latin}\p{Script=Cyrillic}\p{Script=Greek}\p{Script=Hangul}\p{Script=Hiragana}\p{Script=Katakana}]/u;
@@ -102,15 +155,26 @@ function isMandarinTranscript(transcript: string) {
 
 function buildEvaluationReport(
   transcript: string,
-  correctness: CorrectnessEvaluation,
+  correctness: CorrectnessEvaluation | AudioCorrectnessEvaluation,
   challenge: Challenge,
+  evaluationMode: EvaluationMode,
 ) {
   return {
     ...correctness,
+    evaluationMode,
     feedbackSegments: segmentMandarinWithPinyin(correctness.feedback),
     transcript,
     transcriptPinyin: romanizeMandarin(transcript),
     exampleMandarinAnswer: challenge.exampleMandarinAnswer,
     exampleMandarinPinyin: romanizeMandarin(challenge.exampleMandarinAnswer),
+    ...("pronunciationScore" in correctness
+      ? {
+          pronunciationScore: correctness.pronunciationScore,
+          toneScore: correctness.toneScore,
+          pronunciationNeedsWork: correctness.pronunciationNeedsWork,
+          pronunciationFeedback: correctness.pronunciationFeedback,
+          pronunciationProvider: correctness.pronunciationProvider,
+        }
+      : {}),
   };
 }

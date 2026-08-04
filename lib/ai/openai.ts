@@ -16,7 +16,7 @@ const EVALUATION_MODEL = "gpt-5.6-luna";
 
 let openaiClient: OpenAI | null = null;
 
-function getOpenAIClient() {
+export function getOpenAIClient() {
   if (!process.env.OPENAI_API_KEY) {
     throw new AIProviderError(
       "OPENAI_API_KEY is not configured. Add it to your environment and restart the server.",
@@ -109,7 +109,10 @@ export class OpenAIMandarinEvaluator implements MandarinEvaluator {
   }
 }
 
-function toProviderError(error: unknown, stage: "transcription" | "evaluation") {
+export function toProviderError(
+  error: unknown,
+  stage: "transcription" | "evaluation",
+) {
   if (error instanceof APIError) {
     const message = error.message || "OpenAI request failed.";
     const status =
@@ -237,6 +240,6 @@ function isCorrectnessEvaluation(
   );
 }
 
-function clampScore(score: number) {
+export function clampScore(score: number) {
   return Math.max(0, Math.min(100, Math.round(score)));
 }

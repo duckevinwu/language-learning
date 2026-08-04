@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { EvaluationReport, PublicChallenge } from "@/lib/ai/types";
+import type {
+  EvaluationMode,
+  EvaluationReport,
+  PublicChallenge,
+} from "@/lib/ai/types";
 
 type RecorderStatus =
   | "idle"
@@ -21,6 +25,8 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<EvaluationReport | null>(null);
+  const [evaluationMode, setEvaluationMode] =
+    useState<EvaluationMode>("standard");
   const [isLoadingChallenge, setIsLoadingChallenge] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -163,7 +169,7 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
   }
 
   async function submitRecording() {
-    if (!audioBlob || status === "recording") {
+    if (!audioBlob || status !== "recorded") {
       return;
     }
 
@@ -171,11 +177,18 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
     setError(null);
     setReport(null);
 
-    const formData = new FormData();
-    formData.append("audio", audioBlob, "mandarin-practice.webm");
-    formData.append("challengeId", currentChallenge.id);
-
     try {
+      const submissionAudio =
+        evaluationMode === "gpt-audio"
+          ? await convertBlobToWav(audioBlob)
+          : audioBlob;
+      const filename = buildRecordingFilename(evaluationMode, audioBlob);
+      const formData = new FormData();
+
+      formData.append("audio", submissionAudio, filename);
+      formData.append("challengeId", currentChallenge.id);
+      formData.append("evaluationMode", evaluationMode);
+
       const response = await fetch("/api/evaluate", {
         method: "POST",
         body: formData,
@@ -198,7 +211,7 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
     }
   }
 
-  const canSubmit = Boolean(audioBlob) && status !== "recording";
+  const canSubmit = Boolean(audioBlob) && status === "recorded";
   const isBusy = status === "submitting";
   const controlsDisabled = isBusy || isLoadingChallenge;
 
@@ -236,6 +249,29 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2">
+          {(["standard", "gpt-audio"] as const).map((mode) => (
+            <button
+              aria-pressed={evaluationMode === mode}
+              className={`h-10 rounded-md border px-4 text-sm font-semibold transition disabled:cursor-not-allowed ${
+                evaluationMode === mode
+                  ? "border-[#2c2924] bg-[#2c2924] text-white"
+                  : "border-[#bfb4a4] text-[#2c2924] hover:bg-[#eee7dc]"
+              }`}
+              disabled={controlsDisabled || status === "recording"}
+              key={mode}
+              onClick={() => {
+                setEvaluationMode(mode);
+                setReport(null);
+                setError(null);
+              }}
+              type="button"
+            >
+              {mode === "standard" ? "Standard" : "GPT audio"}
+            </button>
+          ))}
+        </div>
+
         <div className="flex flex-wrap gap-3">
           <button
             className="h-12 rounded-md border border-[#bfb4a4] px-5 text-sm font-semibold text-[#2c2924] transition hover:bg-[#eee7dc] disabled:cursor-not-allowed disabled:text-[#9c9286]"
@@ -271,7 +307,11 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
             onClick={submitRecording}
             type="button"
           >
-            {isBusy ? "Evaluating..." : "Submit"}
+            {isBusy
+              ? "Evaluating..."
+              : evaluationMode === "gpt-audio"
+                ? "Submit WAV"
+                : "Submit"}
           </button>
 
           {(audioBlob || report || error) && (
@@ -322,6 +362,115 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
   );
 }
 
+function buildRecordingFilename(mode: EvaluationMode, blob: Blob) {
+  if (mode === "gpt-audio") {
+    return "mandarin-practice.wav";
+  }
+
+  return `mandarin-practice.${getAudioExtension(blob.type)}`;
+}
+
+function getAudioExtension(mimeType: string) {
+  const [baseType] = mimeType.toLowerCase().split(";");
+  const knownExtensions: Record<string, string> = {
+    "audio/webm": "webm",
+    "audio/ogg": "ogg",
+    "audio/mp4": "m4a",
+    "audio/mpeg": "mp3",
+    "audio/wav": "wav",
+    "audio/wave": "wav",
+    "audio/x-wav": "wav",
+  };
+
+  return knownExtensions[baseType] ?? "webm";
+}
+
+type AudioContextWindow = typeof window & {
+  webkitAudioContext?: typeof AudioContext;
+};
+
+function createAudioContext() {
+  const audioWindow = window as AudioContextWindow;
+  const AudioContextConstructor =
+    audioWindow.AudioContext ?? audioWindow.webkitAudioContext;
+
+  if (!AudioContextConstructor) {
+    throw new Error("WAV conversion is not supported in this browser.");
+  }
+
+  return new AudioContextConstructor();
+}
+
+async function convertBlobToWav(blob: Blob) {
+  const audioContext = createAudioContext();
+
+  try {
+    const audioBuffer = await audioContext.decodeAudioData(
+      await blob.arrayBuffer(),
+    );
+
+    return new Blob([encodeWav(audioBuffer)], { type: "audio/wav" });
+  } finally {
+    await audioContext.close();
+  }
+}
+
+function encodeWav(audioBuffer: AudioBuffer) {
+  const channelCount = audioBuffer.numberOfChannels;
+  const sampleRate = audioBuffer.sampleRate;
+  const bytesPerSample = 2;
+  const blockAlign = channelCount * bytesPerSample;
+  const dataLength = audioBuffer.length * blockAlign;
+  const buffer = new ArrayBuffer(44 + dataLength);
+  const view = new DataView(buffer);
+  let offset = 0;
+
+  function writeString(value: string) {
+    for (let index = 0; index < value.length; index += 1) {
+      view.setUint8(offset + index, value.charCodeAt(index));
+    }
+    offset += value.length;
+  }
+
+  writeString("RIFF");
+  view.setUint32(offset, 36 + dataLength, true);
+  offset += 4;
+  writeString("WAVE");
+  writeString("fmt ");
+  view.setUint32(offset, 16, true);
+  offset += 4;
+  view.setUint16(offset, 1, true);
+  offset += 2;
+  view.setUint16(offset, channelCount, true);
+  offset += 2;
+  view.setUint32(offset, sampleRate, true);
+  offset += 4;
+  view.setUint32(offset, sampleRate * blockAlign, true);
+  offset += 4;
+  view.setUint16(offset, blockAlign, true);
+  offset += 2;
+  view.setUint16(offset, bytesPerSample * 8, true);
+  offset += 2;
+  writeString("data");
+  view.setUint32(offset, dataLength, true);
+  offset += 4;
+
+  for (let sampleIndex = 0; sampleIndex < audioBuffer.length; sampleIndex += 1) {
+    for (let channelIndex = 0; channelIndex < channelCount; channelIndex += 1) {
+      const sample = Math.max(
+        -1,
+        Math.min(1, audioBuffer.getChannelData(channelIndex)[sampleIndex]),
+      );
+      const pcm = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+
+      view.setInt16(offset, pcm, true);
+      offset += bytesPerSample;
+    }
+  }
+
+  return buffer;
+}
+
 function FeedbackText({
   fallback,
   segments,
@@ -355,6 +504,7 @@ function FeedbackText({
     </span>
   );
 }
+
 function EvaluationView({
   report,
 }: {
@@ -366,6 +516,10 @@ function EvaluationView({
     ["Grammar", report.grammarScore],
     ["Naturalness", report.naturalnessScore],
   ] as const;
+  const pronunciationScores = [
+    ["Pronunciation", report.pronunciationScore],
+    ["Tones", report.toneScore],
+  ].filter((score): score is [string, number] => typeof score[1] === "number");
 
   return (
     <div className="space-y-6">
@@ -382,7 +536,7 @@ function EvaluationView({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {scores.map(([label, value]) => (
+        {[...scores, ...pronunciationScores].map(([label, value]) => (
           <div
             className="border border-[#ded7ca] bg-[#fbf8f1] p-4"
             key={label}
@@ -419,6 +573,25 @@ function EvaluationView({
             />
           </dd>
         </div>
+        {report.evaluationMode === "gpt-audio" && (
+          <div>
+            <dt className="font-semibold text-[#756b5d]">Pronunciation</dt>
+            {report.pronunciationFeedback ? (
+              <dd className="mt-2 text-[#1f1b16]">
+                {report.pronunciationFeedback}
+              </dd>
+            ) : (
+              <dd className="mt-2 text-[#1f1b16]">
+                Clear. No specific pronunciation correction needed.
+              </dd>
+            )}
+            {report.pronunciationProvider && (
+              <dd className="mt-1 text-xs text-[#756b5d]">
+                {report.pronunciationProvider}
+              </dd>
+            )}
+          </div>
+        )}
       </dl>
     </div>
   );
