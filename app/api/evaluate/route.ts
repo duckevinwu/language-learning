@@ -10,12 +10,10 @@ import type {
   Challenge,
   CorrectnessEvaluation,
   EvaluationMode,
+  TeachingFeedback,
 } from "@/lib/ai/types";
 import { getChallengeById } from "@/lib/challenge";
-import {
-  segmentMandarinWithPinyin,
-  romanizeMandarin,
-} from "@/lib/mandarin/pinyin";
+import { romanizeMandarin } from "@/lib/mandarin/pinyin";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -91,8 +89,21 @@ export async function POST(request: Request) {
             meaningScore: 0,
             grammarScore: 0,
             naturalnessScore: 0,
-            feedback:
-              "Practice this one in Mandarin Chinese. Try saying the full idea with Chinese characters and Mandarin word order; English or another language cannot be accepted for this exercise.",
+            teaching: {
+              summary:
+                "Practice this one in Mandarin Chinese with full Mandarin word order.",
+              vocabulary: challenge.targetConcepts.slice(0, 1).map((concept) => ({
+                term: concept,
+                meaning: "Target vocabulary for this prompt.",
+                status: "missing" as const,
+                explanation:
+                  "This prompt needs this Chinese word or phrase, but the answer was not recognizable Mandarin.",
+                examples: [challenge.exampleMandarinAnswer],
+              })),
+              grammarPatterns: [],
+              nextFocus:
+                "Say the full answer in Mandarin, then compare it with the example answer.",
+            },
           },
           challenge,
           evaluationMode,
@@ -162,7 +173,7 @@ function buildEvaluationReport(
   return {
     ...correctness,
     evaluationMode,
-    feedbackSegments: segmentMandarinWithPinyin(correctness.feedback),
+    teaching: enrichTeachingFeedback(correctness.teaching),
     transcript,
     transcriptPinyin: romanizeMandarin(transcript),
     exampleMandarinAnswer: challenge.exampleMandarinAnswer,
@@ -176,5 +187,33 @@ function buildEvaluationReport(
           pronunciationProvider: correctness.pronunciationProvider,
         }
       : {}),
+  };
+}
+
+
+function enrichTeachingFeedback(teaching: TeachingFeedback): TeachingFeedback {
+  return {
+    ...teaching,
+    vocabulary: teaching.vocabulary.map((item) => ({
+      ...item,
+      pinyin: romanizeMandarin(item.term),
+      ...(item.learnerAttempt
+        ? { learnerAttemptPinyin: romanizeMandarin(item.learnerAttempt) }
+        : {}),
+      ...(item.correction
+        ? { correctionPinyin: romanizeMandarin(item.correction) }
+        : {}),
+      examplePinyin: item.examples.map(romanizeMandarin),
+    })),
+    grammarPatterns: teaching.grammarPatterns.map((item) => ({
+      ...item,
+      ...(item.learnerAttempt
+        ? { learnerAttemptPinyin: romanizeMandarin(item.learnerAttempt) }
+        : {}),
+      ...(item.correction
+        ? { correctionPinyin: romanizeMandarin(item.correction) }
+        : {}),
+      examplePinyin: item.examples.map(romanizeMandarin),
+    })),
   };
 }

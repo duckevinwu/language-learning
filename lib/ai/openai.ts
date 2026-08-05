@@ -2,6 +2,7 @@ import "server-only";
 
 import OpenAI, { APIError, toFile } from "openai";
 import { AIProviderError } from "./errors";
+import { normalizeTeachingFeedback, teachingFeedbackSchema } from "./teaching";
 import type {
   AudioInput,
   CorrectnessEvaluation,
@@ -48,9 +49,8 @@ export class OpenAISpeechTranscriber implements SpeechTranscriber {
       const transcription = await client.audio.transcriptions.create({
         file: audioFile,
         model: TRANSCRIPTION_MODEL,
-        language: "zh",
         prompt:
-          "The speaker is practicing Mandarin Chinese. Transcribe only what they said in Chinese characters.",
+          "The speaker is a beginner practicing Mandarin Chinese. Transcribe exactly what they actually say in the language and script they used, even when it is grammatically wrong, semantically wrong, incomplete, unnatural, mixed Mandarin/English, pinyin, or not a good answer to the prompt. Use Chinese characters only for Mandarin words that were actually spoken as Mandarin; do not translate English or pinyin into Chinese characters. Do not infer the intended sentence, do not complete missing words, and do not rewrite the utterance into correct Mandarin. Preserving beginner mistakes is required because those mistakes are what the app teaches from.",
         response_format: "json",
         temperature: 0,
       });
@@ -86,7 +86,7 @@ export class OpenAIMandarinEvaluator implements MandarinEvaluator {
         model: EVALUATION_MODEL,
         input: buildEvaluationPrompt(input),
         instructions:
-          "You are a strict but helpful Mandarin coach. Score the user's transcript, then write learner-facing coaching that teaches the most important improvement. Return JSON only.",
+          "You are a strict but helpful Mandarin coach. Score the user's transcript, then return structured learner-facing teaching feedback about vocabulary and Chinese grammar patterns. Return JSON only.",
         max_output_tokens: 700,
         text: {
           format: {
@@ -154,12 +154,14 @@ function buildEvaluationPrompt(input: EvaluationInput) {
         "overallScore should reflect the practical correctness of the user's answer.",
         "Set isCorrect true when the answer would be accepted as correct in a speaking practice exercise.",
         "Do not penalize missing punctuation or minor transcription punctuation differences.",
-        "feedback is for coaching the learner, not explaining why you gave the score.",
-        "If there is a grammar mistake, give the corrected Mandarin phrase or sentence and a mini lesson explaining the grammar rule or word order in English.",
-        "If there is a vocabulary mix-up, name the better word or phrase, explain the difference in English, and show the corrected Mandarin phrase or sentence.",
-        "If the answer is correct, reinforce one useful pattern from the user's answer and, if helpful, suggest one natural alternate phrasing.",
-        "Keep feedback to 2-4 concise English sentences. Include Chinese characters only for corrected or example phrases. Do not include pinyin; the app renders pinyin above Chinese phrases automatically.",
-        "Do not mention scores, points, grading categories, or evaluator reasoning in feedback.",
+        "teaching.summary is for the learner, not an explanation of scoring. Keep it to one concise English sentence.",
+        "teaching.vocabulary should list at most 1 high-impact vocabulary item, and only when the learner missed, misused, or chose a noticeably non-optimal word or phrase. Return an empty array when vocabulary is correct and natural.",
+        "Mark vocabulary as missing when the needed word or phrase is absent, and misused when the learner used the wrong, awkward, or noticeably non-optimal word or phrase. Do not include vocabulary just to introduce new words or reinforce correct usage.",
+        "teaching.grammarPatterns should list at most 1 common beginner Mandarin pattern, and only when the learner missed, misused, or used a noticeably non-optimal structure. Return an empty array when grammar is correct and natural.",
+        "For each teaching item, include 1-2 short Mandarin examples. Do not include pinyin; the app adds pinyin automatically.",
+        "Keep teaching focused: include only corrective items, choosing the single most important vocabulary issue and the single most important grammar pattern at most.",
+        "teaching.nextFocus should be one concrete correction to practice next. If the answer is optimal, say no vocabulary or grammar correction is needed.",
+        "Do not mention scores, points, grading categories, or evaluator reasoning in teaching fields.",
       ],
     },
     null,
@@ -176,7 +178,7 @@ const evaluationReportSchema = {
     "meaningScore",
     "grammarScore",
     "naturalnessScore",
-    "feedback",
+    "teaching",
   ],
   properties: {
     isCorrect: { type: "boolean" },
@@ -184,7 +186,7 @@ const evaluationReportSchema = {
     meaningScore: { type: "integer" },
     grammarScore: { type: "integer" },
     naturalnessScore: { type: "integer" },
-    feedback: { type: "string" },
+    teaching: teachingFeedbackSchema,
   },
 } as const;
 
@@ -207,13 +209,22 @@ function parseEvaluationReport(outputText: string): CorrectnessEvaluation {
     );
   }
 
+  const teaching = normalizeTeachingFeedback(parsed.teaching);
+
+  if (!teaching) {
+    throw new AIProviderError(
+      "The evaluator returned incomplete teaching feedback. Try again.",
+      502,
+    );
+  }
+
   return {
     isCorrect: parsed.isCorrect,
     overallScore: clampScore(parsed.overallScore),
     meaningScore: clampScore(parsed.meaningScore),
     grammarScore: clampScore(parsed.grammarScore),
     naturalnessScore: clampScore(parsed.naturalnessScore),
-    feedback: parsed.feedback.trim(),
+    teaching,
   };
 }
 
@@ -225,7 +236,6 @@ function isCorrectnessEvaluation(
   }
 
   const report = value as Record<string, unknown>;
-  const textFields = ["feedback"];
   const scoreFields = [
     "overallScore",
     "meaningScore",
@@ -235,7 +245,7 @@ function isCorrectnessEvaluation(
 
   return (
     typeof report.isCorrect === "boolean" &&
-    textFields.every((field) => typeof report[field] === "string") &&
+    normalizeTeachingFeedback(report.teaching) !== null &&
     scoreFields.every((field) => Number.isFinite(report[field]))
   );
 }

@@ -22,8 +22,13 @@ export class MockMandarinEvaluator implements MandarinEvaluator {
       meaningScore: 96,
       grammarScore: 90,
       naturalnessScore: 90,
-      feedback:
-        "Good use of \u6211\u5728\u5b66\u4e2d\u6587 to say what you are currently doing. To sound a little more natural, you can also say \u6211\u6b63\u5728\u5b66\u4e2d\u6587, where \u6b63\u5728 emphasizes an action in progress.",
+      teaching: {
+        summary:
+          "Clear answer. No vocabulary or grammar correction is needed.",
+        vocabulary: [],
+        grammarPatterns: [],
+        nextFocus: "Keep using full Mandarin sentences with the prompt meaning intact.",
+      },
     };
   }
 }

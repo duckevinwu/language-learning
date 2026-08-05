@@ -2,6 +2,7 @@ import "server-only";
 
 import { AIProviderError } from "./errors";
 import { clampScore, getOpenAIClient, toProviderError } from "./openai";
+import { normalizeTeachingFeedback, teachingFeedbackSchema } from "./teaching";
 import type {
   AudioCorrectnessEvaluation,
   AudioEvaluationInput,
@@ -28,7 +29,7 @@ export class OpenAIGptAudioMandarinEvaluator implements AudioMandarinEvaluator {
           {
             role: "system",
             content:
-              "You are a strict but helpful Mandarin speaking coach. Listen to the learner's audio directly and grade what was actually said, not what the learner may have intended. Do not infer, complete, or correct the learner's answer from the English prompt, target concepts, or example answer. Evaluate pronunciation and tones as a separate task; intelligible speech can still need tone correction, but minor or uncertain accent-level issues should not force feedback. Call the provided tool with JSON arguments only.",
+              "You are a strict but helpful Mandarin speaking coach for a beginner learner. Listen to the learner's audio directly and first transcribe exactly what was actually said, including beginner mistakes, broken Mandarin, missing words, wrong words, wrong grammar, and semantically incorrect answers. Do not infer, complete, predict, normalize, or correct the learner's answer from the English prompt, target concepts, or example answer. Accurate transcription of mistakes is required because those mistakes are what the app teaches from. Evaluate pronunciation and tones as a separate task; intelligible speech can still need tone correction, but minor or uncertain accent-level issues should not force feedback. Call the provided tool with JSON arguments only.",
           },
           {
             role: "user",
@@ -100,14 +101,14 @@ const mandarinAudioEvaluationTool = {
         "pronunciationScore",
         "toneScore",
         "pronunciationNeedsWork",
-        "feedback",
+        "teaching",
         "pronunciationFeedback",
       ],
       properties: {
         transcript: {
           type: "string",
           description:
-            "What the learner actually said, transcribed literally in Chinese characters. Do not repair an incorrect answer into the expected answer.",
+            "What the beginner learner actually said, transcribed literally in the language and script they used. Use Chinese characters only for Mandarin words actually spoken as Mandarin; preserve English, pinyin, mixed speech, mistakes, omissions, broken word order, and semantically wrong answers. Do not repair an incorrect answer into the expected answer.",
         },
         isCorrect: { type: "boolean" },
         overallScore: { type: "integer", minimum: 0, maximum: 100 },
@@ -139,11 +140,7 @@ const mandarinAudioEvaluationTool = {
           description:
             "True only when there is a clear, material initial, final, rhythm, or tone issue that a learner should fix next. False for minor, uncertain, or accent-level variation.",
         },
-        feedback: {
-          type: "string",
-          description:
-            "Concise coaching on meaning, grammar, vocabulary, or phrasing. If the answer is mostly wrong, state the missing core meaning and give a corrected Mandarin answer.",
-        },
+        teaching: teachingFeedbackSchema,
         pronunciationFeedback: {
           type: "string",
           description:
@@ -162,9 +159,13 @@ function buildAudioEvaluationPrompt(challenge: Challenge) {
       exampleMandarinAnswer: challenge.exampleMandarinAnswer,
       targetConcepts: challenge.targetConcepts,
       gradingRules: [
+        "The speaker is a beginner. Beginner mistakes are expected and must be preserved in transcript because they are the evidence used for teaching.",
         "Listen to the audio directly; do not assume the learner said the example answer or any ideal answer.",
         "First transcribe the learner literally, then evaluate that transcript against the English prompt. Never use the exampleMandarinAnswer or targetConcepts to fill in words, modifiers, or meaning that are missing from the audio.",
-        "Transcribe literally. Do not silently repair, normalize, complete, or reinterpret a broken utterance into a good Mandarin sentence.",
+        "Transcribe exactly what the learner says in the language and script they used, even if it is grammatically wrong, semantically wrong, incomplete, unnatural, mixed Mandarin/English, pinyin, or not a good answer to the prompt.",
+        "Use Chinese characters only for Mandarin words actually spoken as Mandarin. Do not translate English into Mandarin, and do not convert pinyin into Chinese characters unless the spoken word is clearly Mandarin speech rather than a spelling/reading attempt.",
+        "Do not silently repair, normalize, complete, predict, or reinterpret a broken utterance into a good Mandarin sentence.",
+        "A bad transcript that preserves the learner's mistake is more useful than a polished transcript that hides the mistake.",
         "Grade only the actual spoken content in transcript. A few correct characters, words, or target concepts are not enough for a high score if the full prompt meaning is missing.",
         "If they mostly did not speak Mandarin, transcribe what you can and score correctness very low.",
         "The exampleMandarinAnswer is only one correct example, not the only valid answer.",
@@ -189,7 +190,14 @@ function buildAudioEvaluationPrompt(challenge: Challenge) {
         "If an initial/final/rhythm issue makes a syllable sound like a different Mandarin syllable, cap pronunciationScore at 79. If this happens repeatedly, cap pronunciationScore at 69.",
         "overallScore should reflect practical correctness of the spoken answer. It must be no more than 10 points above meaningScore unless meaningScore is at least 85.",
         "Set isCorrect true only when the answer would be accepted as correct in a speaking practice exercise.",
-        "feedback is learner-facing coaching on correctness or phrasing. Keep it to 2-4 concise English sentences. Include Chinese characters only for corrected or example phrases; do not include pinyin.",
+        "teaching.summary is learner-facing coaching on correctness or phrasing. Keep it to one concise English sentence.",
+        "teaching.vocabulary should list at most 1 high-impact vocabulary item, and only when the learner missed, misused, or chose a noticeably non-optimal word or phrase. Return an empty array when vocabulary is correct and natural.",
+        "Mark vocabulary as missing when the needed word or phrase is absent, and misused when the learner used the wrong, awkward, or noticeably non-optimal word or phrase. Do not include vocabulary just to introduce new words or reinforce correct usage.",
+        "teaching.grammarPatterns should list at most 1 common beginner Mandarin pattern, and only when the learner missed, misused, or used a noticeably non-optimal structure. Return an empty array when grammar is correct and natural.",
+        "For each teaching item, include 1-2 short Mandarin examples. Do not include pinyin; the app adds pinyin automatically.",
+        "Keep teaching focused: include only corrective items, choosing the single most important vocabulary issue and the single most important grammar pattern at most.",
+        "teaching.nextFocus should be one concrete correction to practice next. If the answer is optimal, say no vocabulary or grammar correction is needed.",
+        "Do not mention scores, points, grading categories, or evaluator reasoning in teaching fields.",
         "Audit the transcript for tones, initials, finals, and rhythm; do this even when the answer meaning is correct and easy to understand.",
         "Set pronunciationNeedsWork true only for a clear, material issue: a wrong tone category, missing/flattened tone contour, unclear initial/final, or rhythm issue that could mislead a listener or is worth fixing next.",
         "Set pronunciationNeedsWork false for slight accent, recording uncertainty, one-off variation, or issues too minor to be the learner\'s next focus. In that case, return an empty pronunciationFeedback string.",
@@ -227,6 +235,15 @@ function parseAudioEvaluationReport(
     );
   }
 
+  const teaching = normalizeTeachingFeedback(parsed.teaching);
+
+  if (!teaching) {
+    throw new AIProviderError(
+      "The audio evaluator returned incomplete teaching feedback. Try again.",
+      502,
+    );
+  }
+
   const pronunciationNeedsWork = parsed.pronunciationNeedsWork;
   const pronunciationFeedback = parsed.pronunciationFeedback?.trim();
   const meaningScore = clampScore(parsed.meaningScore);
@@ -256,7 +273,7 @@ function parseAudioEvaluationReport(
     pronunciationScore: clampScore(parsed.pronunciationScore),
     toneScore: clampScore(parsed.toneScore),
     pronunciationNeedsWork,
-    feedback: parsed.feedback.trim(),
+    teaching,
     ...(pronunciationFeedback ? { pronunciationFeedback } : {}),
     pronunciationProvider: GPT_AUDIO_EVALUATION_MODEL,
   };
@@ -299,7 +316,6 @@ function isAudioCorrectnessEvaluation(
   }
 
   const report = value as Record<string, unknown>;
-  const textFields = ["transcript", "feedback"];
   const scoreFields = [
     "overallScore",
     "meaningScore",
@@ -311,10 +327,11 @@ function isAudioCorrectnessEvaluation(
 
   return (
     typeof report.isCorrect === "boolean" &&
+    typeof report.transcript === "string" &&
     typeof report.pronunciationNeedsWork === "boolean" &&
     (report.pronunciationFeedback === undefined ||
       typeof report.pronunciationFeedback === "string") &&
-    textFields.every((field) => typeof report[field] === "string") &&
+    normalizeTeachingFeedback(report.teaching) !== null &&
     scoreFields.every((field) => Number.isFinite(report[field]))
   );
 }

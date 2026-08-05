@@ -471,37 +471,111 @@ function encodeWav(audioBuffer: AudioBuffer) {
   return buffer;
 }
 
-function FeedbackText({
-  fallback,
-  segments,
+function MandarinLine({
+  text,
+  pinyin,
+  className = "",
 }: {
-  fallback: string;
-  segments?: EvaluationReport["feedbackSegments"];
+  text?: string;
+  pinyin?: string;
+  className?: string;
 }) {
-  if (!segments?.length) {
-    return <>{fallback}</>;
+  if (!text) {
+    return null;
   }
 
   return (
-    <span className="leading-9">
-      {segments.map((segment, index) => {
-        if (segment.type === "text") {
-          return segment.text;
-        }
+    <div className={className}>
+      <p className="text-lg font-medium text-[#1f1b16]">{text}</p>
+      {pinyin && <p className="text-xs text-[#756b5d]">{pinyin}</p>}
+    </div>
+  );
+}
 
-        return (
-          <ruby
-            className="mx-0.5 whitespace-nowrap text-base font-medium"
-            key={`${segment.text}-${index}`}
-          >
-            {segment.text}
-            <rt className="text-[0.65em] font-normal text-[#756b5d]">
-              {segment.pinyin}
-            </rt>
-          </ruby>
-        );
-      })}
-    </span>
+function statusLabel(status: string) {
+  return status
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function TeachingItem({
+  title,
+  pinyin,
+  status,
+  description,
+  learnerAttempt,
+  learnerAttemptPinyin,
+  correction,
+  correctionPinyin,
+  examples,
+  examplePinyin,
+}: {
+  title: string;
+  pinyin?: string;
+  status: string;
+  description: string;
+  learnerAttempt?: string;
+  learnerAttemptPinyin?: string;
+  correction?: string;
+  correctionPinyin?: string;
+  examples: string[];
+  examplePinyin?: string[];
+}) {
+  return (
+    <div className="space-y-3 border border-[#ded7ca] bg-[#fbf8f1] p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-lg font-semibold text-[#1f1b16]">{title}</p>
+          {pinyin && <p className="text-xs text-[#756b5d]">{pinyin}</p>}
+        </div>
+        <span className="rounded-full border border-[#cfc5b6] px-2.5 py-1 text-xs font-medium text-[#5d554b]">
+          {statusLabel(status)}
+        </span>
+      </div>
+
+      <p className="text-sm leading-6 text-[#1f1b16]">{description}</p>
+
+      {(learnerAttempt || correction) && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#756b5d]">
+              You said
+            </p>
+            <MandarinLine
+              className="mt-1"
+              pinyin={learnerAttemptPinyin}
+              text={learnerAttempt || "Not included"}
+            />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#756b5d]">
+              Use
+            </p>
+            <MandarinLine
+              className="mt-1"
+              pinyin={correctionPinyin}
+              text={correction || title}
+            />
+          </div>
+        </div>
+      )}
+
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#756b5d]">
+          Examples
+        </p>
+        <div className="mt-2 space-y-2">
+          {examples.map((example, index) => (
+            <MandarinLine
+              key={`${example}-${index}`}
+              pinyin={examplePinyin?.[index]}
+              text={example}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -520,6 +594,8 @@ function EvaluationView({
     ["Pronunciation", report.pronunciationScore],
     ["Tones", report.toneScore],
   ].filter((score): score is [string, number] => typeof score[1] === "number");
+  const hasVocabulary = report.teaching.vocabulary.length > 0;
+  const hasGrammar = report.teaching.grammarPatterns.length > 0;
 
   return (
     <div className="space-y-6">
@@ -565,34 +641,80 @@ function EvaluationView({
           </dd>
         </div>
         <div>
-          <dt className="font-semibold text-[#756b5d]">Coaching</dt>
-          <dd className="mt-2 text-[#1f1b16]">
-            <FeedbackText
-              fallback={report.feedback}
-              segments={report.feedbackSegments}
-            />
-          </dd>
+          <dt className="font-semibold text-[#756b5d]">Teaching summary</dt>
+          <dd className="mt-2 text-[#1f1b16]">{report.teaching.summary}</dd>
         </div>
-        {report.evaluationMode === "gpt-audio" && (
-          <div>
-            <dt className="font-semibold text-[#756b5d]">Pronunciation</dt>
-            {report.pronunciationFeedback ? (
-              <dd className="mt-2 text-[#1f1b16]">
-                {report.pronunciationFeedback}
-              </dd>
-            ) : (
-              <dd className="mt-2 text-[#1f1b16]">
-                Clear. No specific pronunciation correction needed.
-              </dd>
-            )}
-            {report.pronunciationProvider && (
-              <dd className="mt-1 text-xs text-[#756b5d]">
-                {report.pronunciationProvider}
-              </dd>
-            )}
-          </div>
-        )}
       </dl>
+
+      {hasVocabulary && (
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-[#756b5d]">
+            Vocabulary
+          </h3>
+          {report.teaching.vocabulary.map((item, index) => (
+            <TeachingItem
+              correction={item.correction}
+              correctionPinyin={item.correctionPinyin}
+              description={`${item.meaning}. ${item.explanation}`}
+              examplePinyin={item.examplePinyin}
+              examples={item.examples}
+              key={`${item.term}-${index}`}
+              learnerAttempt={item.learnerAttempt}
+              learnerAttemptPinyin={item.learnerAttemptPinyin}
+              pinyin={item.pinyin}
+              status={item.status}
+              title={item.term}
+            />
+          ))}
+        </section>
+      )}
+
+      {hasGrammar && (
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-[#756b5d]">
+            Grammar Pattern
+          </h3>
+          {report.teaching.grammarPatterns.map((item, index) => (
+            <TeachingItem
+              correction={item.correction}
+              correctionPinyin={item.correctionPinyin}
+              description={item.explanation}
+              examplePinyin={item.examplePinyin}
+              examples={item.examples}
+              key={`${item.pattern}-${index}`}
+              learnerAttempt={item.learnerAttempt}
+              learnerAttemptPinyin={item.learnerAttemptPinyin}
+              status={item.status}
+              title={item.pattern}
+            />
+          ))}
+        </section>
+      )}
+
+      <section className="border-l-4 border-[#bfb4a4] bg-[#fbf8f1] px-4 py-3">
+        <h3 className="text-sm font-semibold text-[#756b5d]">Next focus</h3>
+        <p className="mt-1 text-sm leading-6 text-[#1f1b16]">
+          {report.teaching.nextFocus}
+        </p>
+      </section>
+
+      {report.evaluationMode === "gpt-audio" && (
+        <section className="space-y-2 text-sm leading-7">
+          <h3 className="font-semibold text-[#756b5d]">Pronunciation</h3>
+          {report.pronunciationFeedback ? (
+            <p className="text-[#1f1b16]">{report.pronunciationFeedback}</p>
+          ) : (
+            <p className="text-[#1f1b16]">
+              Clear. No specific pronunciation correction needed.
+            </p>
+          )}
+          {report.pronunciationProvider && (
+            <p className="text-xs text-[#756b5d]">
+              {report.pronunciationProvider}
+            </p>
+          )}
+        </section>
+      )}
     </div>
   );
 }

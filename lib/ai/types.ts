@@ -31,9 +31,40 @@ export type EvaluationInput = {
   targetConcepts?: string[];
 };
 
-export type FeedbackSegment =
-  | { type: "text"; text: string }
-  | { type: "mandarin"; text: string; pinyin: string };
+export type TeachingItemStatus = "missing" | "misused";
+
+export type VocabularyTeachingItem = {
+  term: string;
+  pinyin?: string;
+  meaning: string;
+  status: TeachingItemStatus;
+  learnerAttempt?: string;
+  learnerAttemptPinyin?: string;
+  correction?: string;
+  correctionPinyin?: string;
+  explanation: string;
+  examples: string[];
+  examplePinyin?: string[];
+};
+
+export type GrammarPatternTeachingItem = {
+  pattern: string;
+  status: TeachingItemStatus;
+  explanation: string;
+  learnerAttempt?: string;
+  learnerAttemptPinyin?: string;
+  correction?: string;
+  correctionPinyin?: string;
+  examples: string[];
+  examplePinyin?: string[];
+};
+
+export type TeachingFeedback = {
+  summary: string;
+  vocabulary: VocabularyTeachingItem[];
+  grammarPatterns: GrammarPatternTeachingItem[];
+  nextFocus: string;
+};
 
 export type CorrectnessEvaluation = {
   isCorrect: boolean;
@@ -41,7 +72,7 @@ export type CorrectnessEvaluation = {
   meaningScore: number;
   grammarScore: number;
   naturalnessScore: number;
-  feedback: string;
+  teaching: TeachingFeedback;
 };
 
 export type AudioEvaluationInput = {
@@ -59,7 +90,6 @@ export type AudioCorrectnessEvaluation = CorrectnessEvaluation & {
 };
 
 export type EvaluationReport = CorrectnessEvaluation & {
-  feedbackSegments: FeedbackSegment[];
   transcript: string;
   transcriptPinyin: string;
   exampleMandarinAnswer: string;
