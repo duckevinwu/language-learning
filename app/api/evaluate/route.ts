@@ -1,7 +1,9 @@
 import { AIProviderError } from "@/lib/ai/errors";
+import { calculateDeterministicScore } from "@/lib/ai/openai";
 import {
   getAudioMandarinEvaluator,
   getMandarinEvaluator,
+  getPronunciationAssessor,
   getSpeechTranscriber,
 } from "@/lib/ai/providers";
 import type {
@@ -10,6 +12,7 @@ import type {
   Challenge,
   CorrectnessEvaluation,
   EvaluationMode,
+  PronunciationAssessmentResult,
   TeachingFeedback,
 } from "@/lib/ai/types";
 import { getChallengeById } from "@/lib/challenge";
@@ -88,7 +91,6 @@ export async function POST(request: Request) {
             overallScore: 0,
             meaningScore: 0,
             grammarScore: 0,
-            naturalnessScore: 0,
             teaching: {
               summary:
                 "Practice this one in Mandarin Chinese with full Mandarin word order.",
@@ -112,12 +114,19 @@ export async function POST(request: Request) {
     }
 
     const evaluator = getMandarinEvaluator();
-    const correctness = await evaluator.evaluate({
-      userTranscript: transcription.transcript,
-      exampleMandarinAnswer: challenge.exampleMandarinAnswer,
-      englishPrompt: challenge.englishPrompt,
-      targetConcepts: challenge.targetConcepts,
-    });
+    const pronunciationAssessor = getPronunciationAssessor();
+    const [correctness, pronunciation] = await Promise.all([
+      evaluator.evaluate({
+        userTranscript: transcription.transcript,
+        exampleMandarinAnswer: challenge.exampleMandarinAnswer,
+        englishPrompt: challenge.englishPrompt,
+        targetConcepts: challenge.targetConcepts,
+      }),
+      pronunciationAssessor.assess({
+        audio: audioInput,
+        referenceText: transcription.transcript,
+      }),
+    ]);
 
     return Response.json(
       buildEvaluationReport(
@@ -125,6 +134,7 @@ export async function POST(request: Request) {
         correctness,
         challenge,
         evaluationMode,
+        pronunciation,
       ),
     );
   } catch (error) {
@@ -164,27 +174,73 @@ function buildEvaluationReport(
   correctness: CorrectnessEvaluation | AudioCorrectnessEvaluation,
   challenge: Challenge,
   evaluationMode: EvaluationMode,
+  pronunciation?: PronunciationAssessmentResult,
 ) {
+  const pronunciationFields = readPronunciationFields(correctness, pronunciation);
+
   return {
     ...correctness,
+    overallScore: calculateVisibleOverallScore(correctness, pronunciation),
     evaluationMode,
     teaching: enrichTeachingFeedback(correctness.teaching),
     transcript,
     transcriptPinyin: romanizeMandarin(transcript),
     exampleMandarinAnswer: challenge.exampleMandarinAnswer,
     exampleMandarinPinyin: romanizeMandarin(challenge.exampleMandarinAnswer),
-    ...("pronunciationScore" in correctness
+    ...pronunciationFields,
+  };
+}
+
+function calculateVisibleOverallScore(
+  correctness: CorrectnessEvaluation | AudioCorrectnessEvaluation,
+  pronunciation?: PronunciationAssessmentResult,
+) {
+  return calculateDeterministicScore([
+    correctness.meaningScore,
+    correctness.grammarScore,
+    pronunciation?.pronunciationScore ??
+      ("pronunciationScore" in correctness
+        ? correctness.pronunciationScore
+        : correctness.overallScore),
+  ]);
+}
+
+function readPronunciationFields(
+  correctness: CorrectnessEvaluation | AudioCorrectnessEvaluation,
+  pronunciation?: PronunciationAssessmentResult,
+) {
+  if (pronunciation) {
+    return enrichPronunciationAssessment(pronunciation);
+  }
+
+  if ("pronunciationScore" in correctness) {
+    return {
+      pronunciationScore: correctness.pronunciationScore,
+      toneScore: correctness.toneScore,
+      pronunciationNeedsWork: correctness.pronunciationNeedsWork,
+      pronunciationFeedback: correctness.pronunciationFeedback,
+      pronunciationProvider: correctness.pronunciationProvider,
+    };
+  }
+
+  return {};
+}
+
+function enrichPronunciationAssessment(
+  pronunciation: PronunciationAssessmentResult,
+): PronunciationAssessmentResult {
+  return {
+    ...pronunciation,
+    ...(pronunciation.pronunciationIssues
       ? {
-          pronunciationScore: correctness.pronunciationScore,
-          toneScore: correctness.toneScore,
-          pronunciationNeedsWork: correctness.pronunciationNeedsWork,
-          pronunciationFeedback: correctness.pronunciationFeedback,
-          pronunciationProvider: correctness.pronunciationProvider,
+          pronunciationIssues: pronunciation.pronunciationIssues.map((issue) => ({
+            ...issue,
+            pinyin: romanizeMandarin(issue.text),
+          })),
         }
       : {}),
   };
 }
-
 
 function enrichTeachingFeedback(teaching: TeachingFeedback): TeachingFeedback {
   return {

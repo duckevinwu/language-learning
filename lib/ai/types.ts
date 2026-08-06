@@ -71,7 +71,7 @@ export type CorrectnessEvaluation = {
   overallScore: number;
   meaningScore: number;
   grammarScore: number;
-  naturalnessScore: number;
+  naturalnessScore?: number;
   teaching: TeachingFeedback;
 };
 
@@ -89,6 +89,26 @@ export type AudioCorrectnessEvaluation = CorrectnessEvaluation & {
   pronunciationProvider: string;
 };
 
+export type PronunciationAssessmentInput = {
+  audio: AudioInput;
+  referenceText: string;
+};
+
+export type PronunciationIssue = {
+  text: string;
+  pinyin?: string;
+  score: number;
+  errorType?: string;
+};
+
+export type PronunciationAssessmentResult = {
+  pronunciationScore: number;
+  pronunciationNeedsWork: boolean;
+  pronunciationFeedback?: string;
+  pronunciationProvider: string;
+  pronunciationIssues?: PronunciationIssue[];
+};
+
 export type EvaluationReport = CorrectnessEvaluation & {
   transcript: string;
   transcriptPinyin: string;
@@ -100,6 +120,7 @@ export type EvaluationReport = CorrectnessEvaluation & {
   pronunciationNeedsWork?: boolean;
   pronunciationFeedback?: string;
   pronunciationProvider?: string;
+  pronunciationIssues?: PronunciationIssue[];
 };
 
 export interface SpeechTranscriber {
@@ -112,4 +133,10 @@ export interface MandarinEvaluator {
 
 export interface AudioMandarinEvaluator {
   evaluate(input: AudioEvaluationInput): Promise<AudioCorrectnessEvaluation>;
+}
+
+export interface PronunciationAssessor {
+  assess(
+    input: PronunciationAssessmentInput,
+  ): Promise<PronunciationAssessmentResult>;
 }

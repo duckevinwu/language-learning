@@ -178,11 +178,8 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
     setReport(null);
 
     try {
-      const submissionAudio =
-        evaluationMode === "gpt-audio"
-          ? await convertBlobToWav(audioBlob)
-          : audioBlob;
-      const filename = buildRecordingFilename(evaluationMode, audioBlob);
+      const submissionAudio = await convertBlobToWav(audioBlob);
+      const filename = buildRecordingFilename(submissionAudio);
       const formData = new FormData();
 
       formData.append("audio", submissionAudio, filename);
@@ -307,11 +304,7 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
             onClick={submitRecording}
             type="button"
           >
-            {isBusy
-              ? "Evaluating..."
-              : evaluationMode === "gpt-audio"
-                ? "Submit WAV"
-                : "Submit"}
+            {isBusy ? "Evaluating..." : "Submit WAV"}
           </button>
 
           {(audioBlob || report || error) && (
@@ -362,27 +355,10 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
   );
 }
 
-function buildRecordingFilename(mode: EvaluationMode, blob: Blob) {
-  if (mode === "gpt-audio") {
-    return "mandarin-practice.wav";
-  }
-
-  return `mandarin-practice.${getAudioExtension(blob.type)}`;
-}
-
-function getAudioExtension(mimeType: string) {
-  const [baseType] = mimeType.toLowerCase().split(";");
-  const knownExtensions: Record<string, string> = {
-    "audio/webm": "webm",
-    "audio/ogg": "ogg",
-    "audio/mp4": "m4a",
-    "audio/mpeg": "mp3",
-    "audio/wav": "wav",
-    "audio/wave": "wav",
-    "audio/x-wav": "wav",
-  };
-
-  return knownExtensions[baseType] ?? "webm";
+function buildRecordingFilename(blob: Blob) {
+  return blob.type === "audio/wav"
+    ? "mandarin-practice.wav"
+    : "mandarin-practice.webm";
 }
 
 type AudioContextWindow = typeof window & {
@@ -585,17 +561,13 @@ function EvaluationView({
   report: EvaluationReport;
 }) {
   const scores = [
-    ["Overall", report.overallScore],
     ["Meaning", report.meaningScore],
     ["Grammar", report.grammarScore],
-    ["Naturalness", report.naturalnessScore],
-  ] as const;
-  const pronunciationScores = [
     ["Pronunciation", report.pronunciationScore],
-    ["Tones", report.toneScore],
   ].filter((score): score is [string, number] => typeof score[1] === "number");
   const hasVocabulary = report.teaching.vocabulary.length > 0;
   const hasGrammar = report.teaching.grammarPatterns.length > 0;
+  const pronunciationIssues = report.pronunciationIssues ?? [];
 
   return (
     <div className="space-y-6">
@@ -612,7 +584,7 @@ function EvaluationView({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {[...scores, ...pronunciationScores].map(([label, value]) => (
+        {scores.map(([label, value]) => (
           <div
             className="border border-[#ded7ca] bg-[#fbf8f1] p-4"
             key={label}
@@ -698,15 +670,39 @@ function EvaluationView({
         </p>
       </section>
 
-      {report.evaluationMode === "gpt-audio" && (
+      {report.pronunciationProvider && (
         <section className="space-y-2 text-sm leading-7">
           <h3 className="font-semibold text-[#756b5d]">Pronunciation</h3>
-          {report.pronunciationFeedback ? (
-            <p className="text-[#1f1b16]">{report.pronunciationFeedback}</p>
-          ) : (
-            <p className="text-[#1f1b16]">
-              Clear. No specific pronunciation correction needed.
-            </p>
+          {pronunciationIssues.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#756b5d]">
+                Sounds to practice
+              </p>
+              <div className="space-y-2">
+                {pronunciationIssues.map((issue) => (
+                  <div
+                    className="border border-[#ded7ca] bg-[#fbf8f1] p-3"
+                    key={`${issue.text}-${issue.score}`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xl font-semibold text-[#1f1b16]">
+                          {issue.text}
+                        </p>
+                        {issue.pinyin && (
+                          <p className="text-xs text-[#756b5d]">
+                            {issue.pinyin}
+                          </p>
+                        )}
+                      </div>
+                      <span className="rounded-full border border-[#cfc5b6] px-2.5 py-1 text-xs font-medium text-[#5d554b]">
+                        {issue.score}/100
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
           {report.pronunciationProvider && (
             <p className="text-xs text-[#756b5d]">

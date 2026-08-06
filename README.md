@@ -1,5 +1,18 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+
+## Environment
+
+Standard speech evaluation uses OpenAI for transcription and correctness, plus Azure Speech Pronunciation Assessment for pronunciation scoring. Configure these server-side variables before running the app:
+
+```bash
+OPENAI_API_KEY=...
+AZURE_SPEECH_KEY=...
+AZURE_SPEECH_REGION=...
+```
+
+`gpt-audio` mode still uses OpenAI audio evaluation directly.
+
 ## Getting Started
 
 First, run the development server:

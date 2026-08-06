@@ -10,6 +10,10 @@ import type {
   Challenge,
 } from "./types";
 
+type ParsedAudioCorrectnessEvaluation = AudioCorrectnessEvaluation & {
+  naturalnessScore: number;
+};
+
 const GPT_AUDIO_EVALUATION_MODEL = "gpt-audio-1.5";
 
 export class OpenAIGptAudioMandarinEvaluator implements AudioMandarinEvaluator {
@@ -54,7 +58,7 @@ export class OpenAIGptAudioMandarinEvaluator implements AudioMandarinEvaluator {
         },
         tools: [mandarinAudioEvaluationTool],
         temperature: 0,
-        max_completion_tokens: 900,
+        max_completion_tokens: 2500,
       });
 
       const toolCall = response.choices[0]?.message.tool_calls?.find(
@@ -310,7 +314,7 @@ function isSpecificPronunciationFeedback(feedback: string | undefined) {
 
 function isAudioCorrectnessEvaluation(
   value: unknown,
-): value is AudioCorrectnessEvaluation {
+): value is ParsedAudioCorrectnessEvaluation {
   if (!value || typeof value !== "object") {
     return false;
   }

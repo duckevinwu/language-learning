@@ -89,7 +89,7 @@ export class OpenAIMandarinEvaluator implements MandarinEvaluator {
         input: buildEvaluationPrompt(input),
         instructions:
           "You are a strict but helpful Mandarin coach. Score the user's transcript, then return structured learner-facing teaching feedback about vocabulary and Chinese grammar patterns. Return JSON only.",
-        max_output_tokens: 700,
+        max_output_tokens: 2500,
         text: {
           format: {
             type: "json_schema",
@@ -149,11 +149,9 @@ function buildEvaluationPrompt(input: EvaluationInput) {
       gradingRules: [
         "The exampleMandarinAnswer is only one correct example, not the only valid answer.",
         "Award full marks if userTranscript has the same meaning and is grammatically correct Mandarin, even when the wording differs from the example.",
-        "Score 0-100 integers.",
+        "Score meaningScore and grammarScore as 0-100 integers.",
         "meaningScore measures whether the user expressed the target meaning.",
         "grammarScore measures Mandarin grammar and word order.",
-        "naturalnessScore measures whether the wording sounds natural to a Mandarin speaker.",
-        "overallScore should reflect the practical correctness of the user's answer.",
         "Set isCorrect true when the answer would be accepted as correct in a speaking practice exercise.",
         "Do not penalize missing punctuation or minor transcription punctuation differences.",
         "teaching.summary is for the learner, not an explanation of scoring. Keep it to one concise English sentence.",
@@ -176,18 +174,14 @@ const evaluationReportSchema = {
   additionalProperties: false,
   required: [
     "isCorrect",
-    "overallScore",
     "meaningScore",
     "grammarScore",
-    "naturalnessScore",
     "teaching",
   ],
   properties: {
     isCorrect: { type: "boolean" },
-    overallScore: { type: "integer" },
     meaningScore: { type: "integer" },
     grammarScore: { type: "integer" },
-    naturalnessScore: { type: "integer" },
     teaching: teachingFeedbackSchema,
   },
 } as const;
@@ -222,10 +216,12 @@ function parseEvaluationReport(outputText: string): CorrectnessEvaluation {
 
   return {
     isCorrect: parsed.isCorrect,
-    overallScore: clampScore(parsed.overallScore),
+    overallScore: calculateDeterministicScore([
+      parsed.meaningScore,
+      parsed.grammarScore,
+    ]),
     meaningScore: clampScore(parsed.meaningScore),
     grammarScore: clampScore(parsed.grammarScore),
-    naturalnessScore: clampScore(parsed.naturalnessScore),
     teaching,
   };
 }
@@ -238,17 +234,22 @@ function isCorrectnessEvaluation(
   }
 
   const report = value as Record<string, unknown>;
-  const scoreFields = [
-    "overallScore",
-    "meaningScore",
-    "grammarScore",
-    "naturalnessScore",
-  ];
+  const scoreFields = ["meaningScore", "grammarScore"];
 
   return (
     typeof report.isCorrect === "boolean" &&
     normalizeTeachingFeedback(report.teaching) !== null &&
     scoreFields.every((field) => Number.isFinite(report[field]))
+  );
+}
+
+export function calculateDeterministicScore(scores: number[]) {
+  if (scores.length === 0) {
+    return 0;
+  }
+
+  return clampScore(
+    scores.reduce((total, score) => total + score, 0) / scores.length,
   );
 }
 
