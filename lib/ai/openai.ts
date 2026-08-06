@@ -13,6 +13,7 @@ import type {
 } from "./types";
 
 const TRANSCRIPTION_MODEL = "gpt-transcribe";
+const TRANSCRIPTION_LANGUAGES = ["zh", "en"];
 const EVALUATION_MODEL = "gpt-5.6-luna";
 
 let openaiClient: OpenAI | null = null;
@@ -48,6 +49,7 @@ export class OpenAISpeechTranscriber implements SpeechTranscriber {
 
       const transcription = await client.audio.transcriptions.create({
         file: audioFile,
+        languages: TRANSCRIPTION_LANGUAGES,
         model: TRANSCRIPTION_MODEL,
         prompt:
           "The speaker is a beginner practicing Mandarin Chinese. Transcribe exactly what they actually say in the language and script they used, even when it is grammatically wrong, semantically wrong, incomplete, unnatural, mixed Mandarin/English, pinyin, or not a good answer to the prompt. Use Chinese characters only for Mandarin words that were actually spoken as Mandarin; do not translate English or pinyin into Chinese characters. Do not infer the intended sentence, do not complete missing words, and do not rewrite the utterance into correct Mandarin. Preserving beginner mistakes is required because those mistakes are what the app teaches from.",

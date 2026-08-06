@@ -154,14 +154,9 @@ function isWavAudio(audio: AudioInput) {
 }
 
 const hanCharacterPattern = /\p{Script=Han}/u;
-const nonMandarinScriptPattern =
-  /[\p{Script=Latin}\p{Script=Cyrillic}\p{Script=Greek}\p{Script=Hangul}\p{Script=Hiragana}\p{Script=Katakana}]/u;
 
 function isMandarinTranscript(transcript: string) {
-  return (
-    hanCharacterPattern.test(transcript) &&
-    !nonMandarinScriptPattern.test(transcript)
-  );
+  return hanCharacterPattern.test(transcript);
 }
 
 function buildEvaluationReport(
