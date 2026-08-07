@@ -94,14 +94,7 @@ export async function POST(request: Request) {
             teaching: {
               summary:
                 "Practice this one in Mandarin Chinese with full Mandarin word order.",
-              vocabulary: challenge.targetConcepts.slice(0, 1).map((concept) => ({
-                term: concept,
-                meaning: "Target vocabulary for this prompt.",
-                status: "missing" as const,
-                explanation:
-                  "This prompt needs this Chinese word or phrase, but the answer was not recognizable Mandarin.",
-                examples: [challenge.exampleMandarinAnswer],
-              })),
+              vocabulary: [],
               grammarPatterns: [],
               nextFocus:
                 "Say the full answer in Mandarin, then compare it with the example answer.",
@@ -120,7 +113,6 @@ export async function POST(request: Request) {
         userTranscript: transcription.transcript,
         exampleMandarinAnswer: challenge.exampleMandarinAnswer,
         englishPrompt: challenge.englishPrompt,
-        targetConcepts: challenge.targetConcepts,
       }),
       pronunciationAssessor.assess({
         audio: audioInput,

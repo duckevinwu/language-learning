@@ -4,7 +4,6 @@ export type Challenge = {
   exampleMandarinAnswer: string;
   category: string;
   difficulty: "beginner";
-  targetConcepts: string[];
   notes?: string;
 };
 
@@ -28,7 +27,6 @@ export type EvaluationInput = {
   userTranscript: string;
   exampleMandarinAnswer: string;
   englishPrompt?: string;
-  targetConcepts?: string[];
 };
 
 export type TeachingItemStatus = "missing" | "misused";

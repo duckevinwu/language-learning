@@ -6,6 +6,7 @@ import type {
   EvaluationReport,
   PublicChallenge,
 } from "@/lib/ai/types";
+import { BrowserSpeechSynthesisProvider } from "@/lib/speech/browser-speech-synthesis";
 
 type RecorderStatus =
   | "idle"
@@ -33,9 +34,16 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const audioUrlRef = useRef<string | null>(null);
+  const speechProviderRef = useRef(new BrowserSpeechSynthesisProvider());
+  const speechRequestIdRef = useRef(0);
+  const [speakingKey, setSpeakingKey] = useState<string | null>(null);
 
   useEffect(() => {
+    const speechProvider = speechProviderRef.current;
+
     return () => {
+      speechRequestIdRef.current += 1;
+      speechProvider.cancel();
       if (audioUrlRef.current) {
         URL.revokeObjectURL(audioUrlRef.current);
       }
@@ -116,7 +124,49 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
     mediaRecorderRef.current = null;
   }
 
+  async function playSpeech(key: string, text: string) {
+    const provider = speechProviderRef.current;
+
+    if (speakingKey === key) {
+      speechRequestIdRef.current += 1;
+      provider.cancel();
+      setSpeakingKey(null);
+      return;
+    }
+
+    if (!provider.isSupported()) {
+      setError("This browser does not support text-to-speech playback.");
+      return;
+    }
+
+    const requestId = speechRequestIdRef.current + 1;
+    speechRequestIdRef.current = requestId;
+    setSpeakingKey(key);
+    setError(null);
+
+    try {
+      await provider.speak({ text });
+      if (speechRequestIdRef.current === requestId) {
+        setSpeakingKey(null);
+      }
+    } catch (caughtError) {
+      if (speechRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      setSpeakingKey(null);
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Speech playback failed.",
+      );
+    }
+  }
+
   function resetPractice() {
+    speechRequestIdRef.current += 1;
+    speechProviderRef.current.cancel();
+    setSpeakingKey(null);
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.stop();
     }
@@ -128,6 +178,9 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
   }
 
   function discardPracticeState() {
+    speechRequestIdRef.current += 1;
+    speechProviderRef.current.cancel();
+    setSpeakingKey(null);
     const recorder = mediaRecorderRef.current;
 
     if (recorder?.state === "recording") {
@@ -222,27 +275,15 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
           </h2>
         </div>
 
-        <div className="space-y-3 border-y border-[#ded7ca] py-5">
+        <div className="border-y border-[#ded7ca] py-5">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="mr-1 text-sm font-medium text-[#756b5d]">
-              Target concepts
-            </p>
+            <p className="mr-1 text-sm font-medium text-[#756b5d]">Subject</p>
             <span className="rounded-full border border-[#cfc5b6] bg-[#fbf8f1] px-3 py-1 text-xs capitalize text-[#4e473e]">
               {currentChallenge.category}
             </span>
             <span className="rounded-full border border-[#cfc5b6] bg-[#fbf8f1] px-3 py-1 text-xs capitalize text-[#4e473e]">
               {currentChallenge.difficulty}
             </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {currentChallenge.targetConcepts.map((concept) => (
-              <span
-                key={concept}
-                className="rounded-full border border-[#cfc5b6] bg-[#fbf8f1] px-3 py-1 text-sm text-[#4e473e]"
-              >
-                {concept}
-              </span>
-            ))}
           </div>
         </div>
 
@@ -339,7 +380,11 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
 
       <aside className="border-t border-[#ded7ca] pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
         {report ? (
-          <EvaluationView report={report} />
+          <EvaluationView
+            onPlaySpeech={playSpeech}
+            report={report}
+            speakingKey={speakingKey}
+          />
         ) : (
           <div className="space-y-5 text-[#5d554b]">
             <p className="text-sm font-medium uppercase tracking-[0.18em]">
@@ -475,6 +520,32 @@ function statusLabel(status: string) {
     .join(" ");
 }
 
+function SpeechPlayButton({
+  isActive,
+  label,
+  onClick,
+}: {
+  isActive: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      aria-label={isActive ? "Stop playback" : label}
+      className={`inline-flex h-7 shrink-0 items-center justify-center rounded-md border px-2 text-xs font-semibold transition ${
+        isActive
+          ? "border-[#9f4f3a] bg-[#9f4f3a] text-white"
+          : "border-[#bfb4a4] bg-white text-[#2c2924] hover:bg-[#eee7dc]"
+      }`}
+      onClick={onClick}
+      title={isActive ? "Stop playback" : label}
+      type="button"
+    >
+      {isActive ? "Stop" : "Play"}
+    </button>
+  );
+}
+
 function TeachingItem({
   title,
   pinyin,
@@ -556,9 +627,13 @@ function TeachingItem({
 }
 
 function EvaluationView({
+  onPlaySpeech,
   report,
+  speakingKey,
 }: {
+  onPlaySpeech: (key: string, text: string) => void;
   report: EvaluationReport;
+  speakingKey: string | null;
 }) {
   const scores = [
     ["Meaning", report.meaningScore],
@@ -605,8 +680,18 @@ function EvaluationView({
         </div>
         <div>
           <dt className="font-semibold text-[#756b5d]">Example answer</dt>
-          <dd className="mt-1 text-xl text-[#1f1b16]">
-            {report.exampleMandarinAnswer}
+          <dd className="mt-1 flex flex-wrap items-center gap-2 text-xl text-[#1f1b16]">
+            <span>{report.exampleMandarinAnswer}</span>
+            <SpeechPlayButton
+              isActive={speakingKey === "report:example-answer"}
+              label="Play example answer"
+              onClick={() =>
+                onPlaySpeech(
+                  "report:example-answer",
+                  report.exampleMandarinAnswer,
+                )
+              }
+            />
           </dd>
           <dd className="mt-1 text-sm text-[#756b5d]">
             {report.exampleMandarinPinyin}

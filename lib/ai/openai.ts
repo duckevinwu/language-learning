@@ -145,7 +145,6 @@ function buildEvaluationPrompt(input: EvaluationInput) {
       userTranscript: input.userTranscript,
       exampleMandarinAnswer: input.exampleMandarinAnswer,
       englishPrompt: input.englishPrompt,
-      targetConcepts: input.targetConcepts,
       gradingRules: [
         "The exampleMandarinAnswer is only one correct example, not the only valid answer.",
         "Award full marks if userTranscript has the same meaning and is grammatically correct Mandarin, even when the wording differs from the example.",
