@@ -15,9 +15,12 @@ const AZURE_PROVIDER = "azure-pronunciation-assessment";
 const AZURE_LANGUAGE = "zh-CN";
 const PRONUNCIATION_ISSUE_THRESHOLD = 80;
 const MAX_PRONUNCIATION_ISSUES = 3;
+const hanCharacterPattern = /[\u3400-\u9fff]/u;
 
 type AzureWord = {
   Word?: string;
+  Offset?: number;
+  Duration?: number;
   PronunciationAssessment?: {
     AccuracyScore?: number;
     ErrorType?: string;
@@ -153,22 +156,45 @@ function parseAzurePronunciation(
 }
 
 function buildPronunciationIssues(words: AzureWord[]): PronunciationIssue[] {
+  const textOccurrenceCounts = new Map<string, number>();
+  let textHanCursor = 0;
+
   return words
-    .filter(isUsefulWordScore)
-    .map((word) => {
-      const score = clampScore(word.PronunciationAssessment?.AccuracyScore ?? 0);
+    .map((word, wordIndex) => {
       const text = word.Word?.trim() ?? "";
+      const textOccurrenceIndex = textOccurrenceCounts.get(text) ?? 0;
+      const textHanStartIndex = textHanCursor;
+
+      textOccurrenceCounts.set(text, textOccurrenceIndex + 1);
+      textHanCursor += countHanCharacters(text);
+
+      return { word, wordIndex, text, textOccurrenceIndex, textHanStartIndex };
+    })
+    .filter(({ word }) => isUsefulWordScore(word))
+    .map(({ word, wordIndex, text, textOccurrenceIndex, textHanStartIndex }) => {
+      const score = clampScore(word.PronunciationAssessment?.AccuracyScore ?? 0);
       const errorType = word.PronunciationAssessment?.ErrorType;
 
       return {
         text,
         score,
+        wordIndex,
+        textOccurrenceIndex,
+        textHanStartIndex,
         ...(errorType && errorType !== "None" ? { errorType } : {}),
+        ...(Number.isFinite(word.Offset) ? { offset: word.Offset } : {}),
+        ...(Number.isFinite(word.Duration) ? { duration: word.Duration } : {}),
       };
     })
     .filter((issue) => issue.score < PRONUNCIATION_ISSUE_THRESHOLD)
     .sort((left, right) => left.score - right.score)
     .slice(0, MAX_PRONUNCIATION_ISSUES);
+}
+
+function countHanCharacters(text: string) {
+  return Array.from(text).filter((character) =>
+    hanCharacterPattern.test(character),
+  ).length;
 }
 
 function isFiniteNumber(value: unknown): value is number {

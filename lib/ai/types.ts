@@ -97,6 +97,11 @@ export type PronunciationIssue = {
   pinyin?: string;
   score: number;
   errorType?: string;
+  wordIndex?: number;
+  textOccurrenceIndex?: number;
+  textHanStartIndex?: number;
+  offset?: number;
+  duration?: number;
 };
 
 export type PronunciationAssessmentResult = {

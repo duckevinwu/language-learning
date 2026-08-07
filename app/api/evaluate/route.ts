@@ -16,7 +16,7 @@ import type {
   TeachingFeedback,
 } from "@/lib/ai/types";
 import { getChallengeById } from "@/lib/challenge";
-import { romanizeMandarin } from "@/lib/mandarin/pinyin";
+import { romanizeMandarin, romanizeMandarinInContext } from "@/lib/mandarin/pinyin";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -168,7 +168,11 @@ function buildEvaluationReport(
   evaluationMode: EvaluationMode,
   pronunciation?: PronunciationAssessmentResult,
 ) {
-  const pronunciationFields = readPronunciationFields(correctness, pronunciation);
+  const pronunciationFields = readPronunciationFields(
+    transcript,
+    correctness,
+    pronunciation,
+  );
 
   return {
     ...correctness,
@@ -198,11 +202,12 @@ function calculateVisibleOverallScore(
 }
 
 function readPronunciationFields(
+  transcript: string,
   correctness: CorrectnessEvaluation | AudioCorrectnessEvaluation,
   pronunciation?: PronunciationAssessmentResult,
 ) {
   if (pronunciation) {
-    return enrichPronunciationAssessment(pronunciation);
+    return enrichPronunciationAssessment(pronunciation, transcript);
   }
 
   if ("pronunciationScore" in correctness) {
@@ -220,6 +225,7 @@ function readPronunciationFields(
 
 function enrichPronunciationAssessment(
   pronunciation: PronunciationAssessmentResult,
+  transcript: string,
 ): PronunciationAssessmentResult {
   return {
     ...pronunciation,
@@ -227,7 +233,10 @@ function enrichPronunciationAssessment(
       ? {
           pronunciationIssues: pronunciation.pronunciationIssues.map((issue) => ({
             ...issue,
-            pinyin: romanizeMandarin(issue.text),
+            pinyin: romanizeMandarinInContext(issue.text, transcript, {
+              hanStartIndex: issue.textHanStartIndex,
+              occurrenceIndex: issue.textOccurrenceIndex,
+            }),
           })),
         }
       : {}),
