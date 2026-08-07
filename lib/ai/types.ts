@@ -1,9 +1,11 @@
+export type ChallengeDifficulty = "beginner" | "intermediate" | "advanced";
+
 export type Challenge = {
   id: string;
   englishPrompt: string;
   exampleMandarinAnswer: string;
   category: string;
-  difficulty: "beginner";
+  difficulty: ChallengeDifficulty;
   notes?: string;
 };
 

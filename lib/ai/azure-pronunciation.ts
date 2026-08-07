@@ -170,7 +170,7 @@ function buildPronunciationIssues(words: AzureWord[]): PronunciationIssue[] {
 
       return { word, wordIndex, text, textOccurrenceIndex, textHanStartIndex };
     })
-    .filter(({ word }) => isUsefulWordScore(word))
+    .filter(({ word }) => isUsefulMandarinWordScore(word))
     .map(({ word, wordIndex, text, textOccurrenceIndex, textHanStartIndex }) => {
       const score = clampScore(word.PronunciationAssessment?.AccuracyScore ?? 0);
       const errorType = word.PronunciationAssessment?.ErrorType;
@@ -195,6 +195,10 @@ function countHanCharacters(text: string) {
   return Array.from(text).filter((character) =>
     hanCharacterPattern.test(character),
   ).length;
+}
+
+function hasHanCharacters(text: string) {
+  return hanCharacterPattern.test(text);
 }
 
 function isFiniteNumber(value: unknown): value is number {
@@ -253,10 +257,11 @@ function readPayloadField(
     : undefined;
 }
 
-function isUsefulWordScore(word: AzureWord) {
+function isUsefulMandarinWordScore(word: AzureWord) {
+  const text = word.Word?.trim() ?? "";
   const score = word.PronunciationAssessment?.AccuracyScore;
 
-  return Boolean(word.Word?.trim()) && Number.isFinite(score);
+  return hasHanCharacters(text) && Number.isFinite(score);
 }
 
 function isAzurePronunciationPayload(

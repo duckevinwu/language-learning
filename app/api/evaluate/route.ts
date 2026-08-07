@@ -158,7 +158,11 @@ function isWavAudio(audio: AudioInput) {
 const hanCharacterPattern = /\p{Script=Han}/u;
 
 function isMandarinTranscript(transcript: string) {
-  return hanCharacterPattern.test(transcript);
+  return hasHanCharacters(transcript);
+}
+
+function hasHanCharacters(text: string) {
+  return hanCharacterPattern.test(text);
 }
 
 function buildEvaluationReport(
@@ -231,13 +235,19 @@ function enrichPronunciationAssessment(
     ...pronunciation,
     ...(pronunciation.pronunciationIssues
       ? {
-          pronunciationIssues: pronunciation.pronunciationIssues.map((issue) => ({
-            ...issue,
-            pinyin: romanizeMandarinInContext(issue.text, transcript, {
-              hanStartIndex: issue.textHanStartIndex,
-              occurrenceIndex: issue.textOccurrenceIndex,
-            }),
-          })),
+          pronunciationIssues: pronunciation.pronunciationIssues.map((issue) => {
+            const pinyin = hasHanCharacters(issue.text)
+              ? romanizeMandarinInContext(issue.text, transcript, {
+                  hanStartIndex: issue.textHanStartIndex,
+                  occurrenceIndex: issue.textOccurrenceIndex,
+                })
+              : undefined;
+
+            return {
+              ...issue,
+              ...(pinyin ? { pinyin } : {}),
+            };
+          }),
         }
       : {}),
   };
