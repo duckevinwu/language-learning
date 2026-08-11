@@ -10,6 +10,7 @@ import { BrowserSpeechSynthesisProvider } from "@/lib/speech/browser-speech-synt
 
 const PASSING_SCORE = 75;
 const CHALLENGE_COUNT = 3;
+const MAX_RECORDING_SECONDS = 30;
 
 type RecorderStatus =
   | "idle"
@@ -38,11 +39,19 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
   const [evaluationMode, setEvaluationMode] =
     useState<EvaluationMode>("standard");
   const [isLoadingChallenge, setIsLoadingChallenge] = useState(false);
+  const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const audioUrlRef = useRef<string | null>(null);
+  const recordingStartedAtRef = useRef<number | null>(null);
+  const recordingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
+  const recordingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const speechProviderRef = useRef(new BrowserSpeechSynthesisProvider());
   const speechRequestIdRef = useRef(0);
   const [speakingKey, setSpeakingKey] = useState<string | null>(null);
@@ -68,6 +77,7 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
       if (audioUrlRef.current) {
         URL.revokeObjectURL(audioUrlRef.current);
       }
+      clearRecordingTimer();
       streamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
@@ -97,6 +107,7 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
       };
 
       recorder.onstop = () => {
+        clearRecordingTimer();
         const blob = new Blob(chunksRef.current, {
           type: recorder.mimeType || "audio/webm",
         });
@@ -111,11 +122,13 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
 
       recorder.start();
       setStatus("recording");
+      startRecordingTimer();
     } catch {
       setError(
         "Microphone access was blocked. Allow microphone permission and try again.",
       );
       setStatus("idle");
+      clearRecordingTimer();
       stopStream();
     }
   }
@@ -133,10 +146,57 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
       URL.revokeObjectURL(audioUrlRef.current);
     }
 
+    clearRecordingTimer();
+    setRecordingElapsedSeconds(0);
     audioUrlRef.current = null;
     setAudioBlob(null);
     setAudioUrl(null);
     chunksRef.current = [];
+  }
+
+  function startRecordingTimer() {
+    clearRecordingTimer();
+    recordingStartedAtRef.current = Date.now();
+    setRecordingElapsedSeconds(0);
+
+    recordingIntervalRef.current = setInterval(() => {
+      const startedAt = recordingStartedAtRef.current;
+
+      if (!startedAt) {
+        return;
+      }
+
+      setRecordingElapsedSeconds(
+        Math.min(
+          MAX_RECORDING_SECONDS,
+          Math.floor((Date.now() - startedAt) / 1000),
+        ),
+      );
+    }, 250);
+
+    recordingTimeoutRef.current = setTimeout(() => {
+      setRecordingElapsedSeconds(MAX_RECORDING_SECONDS);
+
+      const recorder = mediaRecorderRef.current;
+
+      if (recorder?.state === "recording") {
+        recorder.stop();
+      }
+    }, MAX_RECORDING_SECONDS * 1000);
+  }
+
+  function clearRecordingTimer() {
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current);
+    }
+
+    if (recordingTimeoutRef.current) {
+      clearTimeout(recordingTimeoutRef.current);
+    }
+
+    recordingStartedAtRef.current = null;
+    recordingIntervalRef.current = null;
+    recordingTimeoutRef.current = null;
   }
 
   function stopStream() {
@@ -221,6 +281,7 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
       recorder.stop();
     }
 
+    clearRecordingTimer();
     stopStream();
     clearRecording();
     setError(null);
@@ -458,7 +519,10 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
         )}
 
         {status === "recording" && (
-          <p className="text-sm text-[#9f4f3a]">Recording...</p>
+          <p className="text-sm font-medium text-[#9f4f3a]">
+            Recording {formatRecordingTime(recordingElapsedSeconds)} /{" "}
+            {formatRecordingTime(MAX_RECORDING_SECONDS)}
+          </p>
         )}
 
         {audioUrl && (
@@ -633,6 +697,12 @@ function DayCompleteView({
     </div>
   );
 }
+function formatRecordingTime(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
 function buildRecordingFilename(blob: Blob) {
   return blob.type === "audio/wav"
     ? "mandarin-practice.wav"
@@ -663,18 +733,23 @@ async function convertBlobToWav(blob: Blob) {
       await blob.arrayBuffer(),
     );
 
-    return new Blob([encodeWav(audioBuffer)], { type: "audio/wav" });
+    return new Blob([encodeWav(audioBuffer, MAX_RECORDING_SECONDS)], {
+      type: "audio/wav",
+    });
   } finally {
     await audioContext.close();
   }
 }
 
-function encodeWav(audioBuffer: AudioBuffer) {
+function encodeWav(audioBuffer: AudioBuffer, maxDurationSeconds?: number) {
   const channelCount = audioBuffer.numberOfChannels;
   const sampleRate = audioBuffer.sampleRate;
+  const sampleCount = maxDurationSeconds
+    ? Math.min(audioBuffer.length, Math.floor(sampleRate * maxDurationSeconds))
+    : audioBuffer.length;
   const bytesPerSample = 2;
   const blockAlign = channelCount * bytesPerSample;
-  const dataLength = audioBuffer.length * blockAlign;
+  const dataLength = sampleCount * blockAlign;
   const buffer = new ArrayBuffer(44 + dataLength);
   const view = new DataView(buffer);
   let offset = 0;
@@ -709,7 +784,7 @@ function encodeWav(audioBuffer: AudioBuffer) {
   view.setUint32(offset, dataLength, true);
   offset += 4;
 
-  for (let sampleIndex = 0; sampleIndex < audioBuffer.length; sampleIndex += 1) {
+  for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex += 1) {
     for (let channelIndex = 0; channelIndex < channelCount; channelIndex += 1) {
       const sample = Math.max(
         -1,
