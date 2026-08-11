@@ -58,7 +58,6 @@ export class OpenAIGptAudioMandarinEvaluator implements AudioMandarinEvaluator {
         },
         tools: [mandarinAudioEvaluationTool],
         temperature: 0,
-        max_completion_tokens: 2500,
       });
 
       const toolCall = response.choices[0]?.message.tool_calls?.find(

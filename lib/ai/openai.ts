@@ -89,7 +89,6 @@ export class OpenAIMandarinEvaluator implements MandarinEvaluator {
         input: buildEvaluationPrompt(input),
         instructions:
           "You are a strict but helpful Mandarin coach. Score the user's transcript, then return structured learner-facing teaching feedback about vocabulary and Chinese grammar patterns. Return JSON only.",
-        max_output_tokens: 2500,
         text: {
           format: {
             type: "json_schema",

@@ -4,9 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import type {
   EvaluationMode,
   EvaluationReport,
-  PublicChallenge,
+  PublicDailyChallenge,
 } from "@/lib/ai/types";
 import { BrowserSpeechSynthesisProvider } from "@/lib/speech/browser-speech-synthesis";
+
+const PASSING_SCORE = 75;
+const CHALLENGE_COUNT = 3;
 
 type RecorderStatus =
   | "idle"
@@ -16,16 +19,22 @@ type RecorderStatus =
   | "complete";
 
 type PracticeRecorderProps = {
-  challenge: PublicChallenge;
+  dailyChallenge: PublicDailyChallenge;
 };
 
-export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
-  const [currentChallenge, setCurrentChallenge] = useState(challenge);
+type DayEndReason = "completed" | "stopped";
+
+export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
+  const [currentDay, setCurrentDay] = useState(dailyChallenge);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [stepReports, setStepReports] = useState<(EvaluationReport | null)[]>(
+    [],
+  );
+  const [dayEndReason, setDayEndReason] = useState<DayEndReason | null>(null);
   const [status, setStatus] = useState<RecorderStatus>("idle");
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [report, setReport] = useState<EvaluationReport | null>(null);
   const [evaluationMode, setEvaluationMode] =
     useState<EvaluationMode>("standard");
   const [isLoadingChallenge, setIsLoadingChallenge] = useState(false);
@@ -37,6 +46,18 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
   const speechProviderRef = useRef(new BrowserSpeechSynthesisProvider());
   const speechRequestIdRef = useRef(0);
   const [speakingKey, setSpeakingKey] = useState<string | null>(null);
+
+  const currentChallenge = currentDay.challenges[currentStepIndex];
+  const report = stepReports[currentStepIndex] ?? null;
+  const scorePassed = Boolean(report && report.overallScore >= PASSING_SCORE);
+  const isLastChallenge = currentStepIndex === CHALLENGE_COUNT - 1;
+  const attemptedReports = stepReports.filter(
+    (stepReport): stepReport is EvaluationReport => Boolean(stepReport),
+  );
+  const completedCount = stepReports.filter(
+    (stepReport) =>
+      Boolean(stepReport && stepReport.overallScore >= PASSING_SCORE),
+  ).length;
 
   useEffect(() => {
     const speechProvider = speechProviderRef.current;
@@ -53,7 +74,7 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
 
   async function startRecording() {
     setError(null);
-    setReport(null);
+    clearCurrentReport();
     clearRecording();
 
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -163,6 +184,18 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
     }
   }
 
+  function clearCurrentReport() {
+    setStepReports((previousReports) => {
+      if (!previousReports[currentStepIndex]) {
+        return previousReports;
+      }
+
+      const nextReports = [...previousReports];
+      nextReports[currentStepIndex] = null;
+      return nextReports;
+    });
+  }
+
   function resetPractice() {
     speechRequestIdRef.current += 1;
     speechProviderRef.current.cancel();
@@ -172,7 +205,7 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
     }
     stopStream();
     clearRecording();
-    setReport(null);
+    clearCurrentReport();
     setError(null);
     setStatus("idle");
   }
@@ -190,31 +223,33 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
 
     stopStream();
     clearRecording();
-    setReport(null);
     setError(null);
     setStatus("idle");
   }
 
-  async function loadRandomChallenge() {
+  async function loadNewDay() {
     setIsLoadingChallenge(true);
     discardPracticeState();
 
     try {
-      const response = await fetch("/api/challenges/random", {
+      const response = await fetch("/api/challenges/day", {
         cache: "no-store",
       });
       const payload = await response.json();
 
       if (!response.ok) {
-        throw new Error(payload?.error || "Could not load a random prompt.");
+        throw new Error(payload?.error || "Could not load a daily challenge.");
       }
 
-      setCurrentChallenge(payload as PublicChallenge);
+      setCurrentDay(payload as PublicDailyChallenge);
+      setCurrentStepIndex(0);
+      setStepReports([]);
+      setDayEndReason(null);
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Could not load a random prompt.",
+          : "Could not load a daily challenge.",
       );
     } finally {
       setIsLoadingChallenge(false);
@@ -228,7 +263,7 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
 
     setStatus("submitting");
     setError(null);
-    setReport(null);
+    clearCurrentReport();
 
     try {
       const submissionAudio = await convertBlobToWav(audioBlob);
@@ -249,7 +284,11 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
         throw new Error(payload?.error || "Could not evaluate this recording.");
       }
 
-      setReport(payload as EvaluationReport);
+      setStepReports((previousReports) => {
+        const nextReports = [...previousReports];
+        nextReports[currentStepIndex] = payload as EvaluationReport;
+        return nextReports;
+      });
       setStatus("complete");
     } catch (caughtError) {
       setError(
@@ -261,14 +300,48 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
     }
   }
 
+  function moveToNextChallenge() {
+    if (!report) {
+      return;
+    }
+
+    discardPracticeState();
+
+    if (!scorePassed || isLastChallenge) {
+      setDayEndReason(scorePassed ? "completed" : "stopped");
+      return;
+    }
+
+    setCurrentStepIndex((stepIndex) => stepIndex + 1);
+  }
+
   const canSubmit = Boolean(audioBlob) && status === "recorded";
   const isBusy = status === "submitting";
   const controlsDisabled = isBusy || isLoadingChallenge;
+
+  if (dayEndReason) {
+    return (
+      <DayCompleteView
+        attemptedReports={attemptedReports}
+        completedCount={completedCount}
+        error={error}
+        isLoadingChallenge={isLoadingChallenge}
+        onGenerateDay={loadNewDay}
+        reason={dayEndReason}
+      />
+    );
+  }
 
   return (
     <div className="grid flex-1 content-center gap-8 py-10 lg:grid-cols-[1fr_0.9fr] lg:py-16">
       <section className="space-y-8">
         <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-[#756b5d]">
+            <span>Challenge {currentStepIndex + 1} of {CHALLENGE_COUNT}</span>
+            <span className="rounded-full border border-[#cfc5b6] bg-[#fbf8f1] px-3 py-1 text-xs capitalize text-[#4e473e]">
+              {currentChallenge.difficulty}
+            </span>
+          </div>
           <p className="text-sm font-medium text-[#756b5d]">Translate aloud</p>
           <h2 className="max-w-2xl text-4xl font-semibold leading-tight sm:text-5xl">
             {currentChallenge.englishPrompt}
@@ -281,11 +354,14 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
             <span className="rounded-full border border-[#cfc5b6] bg-[#fbf8f1] px-3 py-1 text-xs capitalize text-[#4e473e]">
               {currentChallenge.category}
             </span>
-            <span className="rounded-full border border-[#cfc5b6] bg-[#fbf8f1] px-3 py-1 text-xs capitalize text-[#4e473e]">
-              {currentChallenge.difficulty}
-            </span>
+
           </div>
         </div>
+
+        <ChallengeProgress
+          currentStepIndex={currentStepIndex}
+          reports={stepReports}
+        />
 
         <div className="flex flex-wrap items-center gap-2">
           {(["standard", "gpt-audio"] as const).map((mode) => (
@@ -300,7 +376,7 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
               key={mode}
               onClick={() => {
                 setEvaluationMode(mode);
-                setReport(null);
+                clearCurrentReport();
                 setError(null);
               }}
               type="button"
@@ -313,11 +389,11 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
         <div className="flex flex-wrap gap-3">
           <button
             className="h-12 rounded-md border border-[#bfb4a4] px-5 text-sm font-semibold text-[#2c2924] transition hover:bg-[#eee7dc] disabled:cursor-not-allowed disabled:text-[#9c9286]"
-            disabled={controlsDisabled}
-            onClick={loadRandomChallenge}
+            disabled={controlsDisabled || status === "recording"}
+            onClick={loadNewDay}
             type="button"
           >
-            {isLoadingChallenge ? "Loading..." : "Random prompt"}
+            {isLoadingChallenge ? "Loading..." : "Generate new day"}
           </button>
 
           {status !== "recording" ? (
@@ -348,6 +424,21 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
             {isBusy ? "Evaluating..." : "Submit WAV"}
           </button>
 
+          {report && (
+            <button
+              className="h-12 rounded-md bg-[#2c2924] px-5 text-sm font-semibold text-white transition hover:bg-[#403a33] disabled:cursor-not-allowed disabled:bg-[#aaa197]"
+              disabled={controlsDisabled}
+              onClick={moveToNextChallenge}
+              type="button"
+            >
+              {scorePassed
+                ? isLastChallenge
+                  ? "Finish day"
+                  : "Next challenge"
+                : "End day"}
+            </button>
+          )}
+
           {(audioBlob || report || error) && (
             <button
               className="h-12 rounded-md px-5 text-sm font-semibold text-[#5d554b] transition hover:bg-[#eee7dc]"
@@ -359,6 +450,12 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
             </button>
           )}
         </div>
+
+        {report && !scorePassed && (
+          <p className="max-w-xl text-sm leading-6 text-[#9f4f3a]">
+            Score at least {PASSING_SCORE} to unlock the next level. This run can end here after you review the feedback.
+          </p>
+        )}
 
         {status === "recording" && (
           <p className="text-sm text-[#9f4f3a]">Recording...</p>
@@ -391,7 +488,7 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
               Feedback
             </p>
             <p className="text-lg leading-8">
-              Record one short answer. You will get a short coaching note on grammar, vocabulary, or natural phrasing.
+              Complete beginner, intermediate, and advanced prompts in order. Score at least {PASSING_SCORE} to move on.
             </p>
           </div>
         )}
@@ -400,6 +497,142 @@ export function PracticeRecorder({ challenge }: PracticeRecorderProps) {
   );
 }
 
+function ChallengeProgress({
+  currentStepIndex,
+  reports,
+}: {
+  currentStepIndex: number;
+  reports: (EvaluationReport | null)[];
+}) {
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {(["Beginner", "Intermediate", "Advanced"] as const).map(
+        (label, index) => {
+          const report = reports[index];
+          const passed = Boolean(report && report.overallScore >= PASSING_SCORE);
+          const isCurrent = index === currentStepIndex;
+
+          return (
+            <div
+              className={`border p-3 ${
+                isCurrent
+                  ? "border-[#2c2924] bg-[#fbf8f1]"
+                  : "border-[#ded7ca] bg-transparent"
+              }`}
+              key={label}
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#756b5d]">
+                {label}
+              </p>
+              <p className="mt-2 text-lg font-semibold text-[#1f1b16]">
+                {report ? `${report.overallScore}/100` : isCurrent ? "Current" : "Locked"}
+              </p>
+              {report && (
+                <p className="mt-1 text-xs font-medium text-[#756b5d]">
+                  {passed ? "Passed" : "Stopped"}
+                </p>
+              )}
+            </div>
+          );
+        },
+      )}
+    </div>
+  );
+}
+
+function DayCompleteView({
+  attemptedReports,
+  completedCount,
+  error,
+  isLoadingChallenge,
+  onGenerateDay,
+  reason,
+}: {
+  attemptedReports: EvaluationReport[];
+  completedCount: number;
+  error: string | null;
+  isLoadingChallenge: boolean;
+  onGenerateDay: () => void;
+  reason: DayEndReason;
+}) {
+  const averageScore = attemptedReports.length
+    ? Math.round(
+        attemptedReports.reduce((total, report) => total + report.overallScore, 0) /
+          attemptedReports.length,
+      )
+    : 0;
+
+  return (
+    <div className="grid flex-1 content-center gap-8 py-10 lg:grid-cols-[1fr_0.9fr] lg:py-16">
+      <section className="space-y-7">
+        <div className="space-y-4">
+          <p className="text-sm font-medium uppercase tracking-[0.18em] text-[#756b5d]">
+            Daily Challenge Complete
+          </p>
+          <h2 className="max-w-2xl text-4xl font-semibold leading-tight sm:text-5xl">
+            {reason === "completed"
+              ? "Congratulations, you completed today's challenge."
+              : `You made it through ${completedCount} of ${CHALLENGE_COUNT} challenges.`}
+          </h2>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="border border-[#ded7ca] bg-[#fbf8f1] p-5">
+            <p className="text-sm text-[#756b5d]">Overall score</p>
+            <p className="mt-2 text-3xl font-semibold">{averageScore}/100</p>
+          </div>
+          <div className="border border-[#ded7ca] bg-[#fbf8f1] p-5">
+            <p className="text-sm text-[#756b5d]">Completed</p>
+            <p className="mt-2 text-3xl font-semibold">
+              {completedCount}/{CHALLENGE_COUNT}
+            </p>
+          </div>
+        </div>
+
+        <button
+          className="h-12 w-fit rounded-md bg-[#2c2924] px-5 text-sm font-semibold text-white transition hover:bg-[#403a33] disabled:cursor-not-allowed disabled:bg-[#aaa197]"
+          disabled={isLoadingChallenge}
+          onClick={onGenerateDay}
+          type="button"
+        >
+          {isLoadingChallenge ? "Loading..." : "Generate new day"}
+        </button>
+
+        {error && (
+          <div className="max-w-xl border-l-4 border-[#9f4f3a] bg-[#fff9f4] px-4 py-3 text-sm text-[#663526]">
+            {error}
+          </div>
+        )}
+      </section>
+
+      <aside className="border-t border-[#ded7ca] pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+        <div className="space-y-4">
+          <p className="text-sm font-medium uppercase tracking-[0.18em] text-[#756b5d]">
+            Scores
+          </p>
+          {attemptedReports.map((report, index) => (
+            <div
+              className="border border-[#ded7ca] bg-[#fbf8f1] p-4"
+              key={`${report.transcript}-${index}`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-[#756b5d]">
+                  Challenge {index + 1}
+                </p>
+                <p className="text-lg font-semibold text-[#1f1b16]">
+                  {report.overallScore}/100
+                </p>
+              </div>
+              <p className="mt-2 text-sm text-[#5d554b]">
+                {report.overallScore >= PASSING_SCORE ? "Passed" : "Needs work"}
+              </p>
+            </div>
+          ))}
+        </div>
+      </aside>
+    </div>
+  );
+}
 function buildRecordingFilename(blob: Blob) {
   return blob.type === "audio/wav"
     ? "mandarin-practice.wav"

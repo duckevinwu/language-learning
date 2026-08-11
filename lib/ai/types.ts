@@ -11,6 +11,11 @@ export type Challenge = {
 
 export type PublicChallenge = Omit<Challenge, "exampleMandarinAnswer">;
 
+export type PublicDailyChallenge = {
+  id: string;
+  challenges: [PublicChallenge, PublicChallenge, PublicChallenge];
+};
+
 export type AudioInput = {
   data: ArrayBuffer;
   mimeType: string;

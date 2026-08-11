@@ -1,4 +1,9 @@
-import type { Challenge, ChallengeDifficulty, PublicChallenge } from "./ai/types";
+import type {
+  Challenge,
+  ChallengeDifficulty,
+  PublicChallenge,
+  PublicDailyChallenge,
+} from "./ai/types";
 
 type ChallengeSeed = readonly [
   id: string,
@@ -199,6 +204,27 @@ export const challenges: Challenge[] = [
 
 export function getRandomChallenge(): Challenge {
   return challenges[Math.floor(Math.random() * challenges.length)];
+}
+
+export function getRandomChallengeByDifficulty(
+  difficulty: ChallengeDifficulty,
+): Challenge {
+  const matchingChallenges = challenges.filter(
+    (challenge) => challenge.difficulty === difficulty,
+  );
+
+  return matchingChallenges[Math.floor(Math.random() * matchingChallenges.length)];
+}
+
+export function getRandomDailyChallenge(): PublicDailyChallenge {
+  return {
+    id: `day-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    challenges: [
+      toPublicChallenge(getRandomChallengeByDifficulty("beginner")),
+      toPublicChallenge(getRandomChallengeByDifficulty("intermediate")),
+      toPublicChallenge(getRandomChallengeByDifficulty("advanced")),
+    ],
+  };
 }
 
 export function getChallengeById(id: string): Challenge | undefined {

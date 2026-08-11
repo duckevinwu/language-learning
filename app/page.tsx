@@ -1,10 +1,10 @@
 import { PracticeRecorder } from "./practice-recorder";
-import { getRandomChallenge, toPublicChallenge } from "@/lib/challenge";
+import { getRandomDailyChallenge } from "@/lib/challenge";
 
 export const dynamic = "force-dynamic";
 
 export default function Home() {
-  const challenge = toPublicChallenge(getRandomChallenge());
+  const dailyChallenge = getRandomDailyChallenge();
 
   return (
     <main className="min-h-screen bg-[#f8f5ef] text-[#1f1b16]">
@@ -15,15 +15,15 @@ export default function Home() {
               Mandarin Practice
             </p>
             <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">
-              Speaking Practice
+              Daily Challenge
             </h1>
           </div>
-          <div className="hidden rounded-full border border-[#cfc5b6] px-3 py-1 text-sm capitalize text-[#5d554b] sm:block">
-            {challenge.difficulty}
+          <div className="hidden rounded-full border border-[#cfc5b6] px-3 py-1 text-sm text-[#5d554b] sm:block">
+            3 levels
           </div>
         </header>
 
-        <PracticeRecorder challenge={challenge} />
+        <PracticeRecorder dailyChallenge={dailyChallenge} />
       </div>
     </main>
   );
