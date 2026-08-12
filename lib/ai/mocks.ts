@@ -22,13 +22,11 @@ export class MockMandarinEvaluator implements MandarinEvaluator {
       meaningScore: 96,
       grammarScore: 90,
       naturalnessScore: 90,
-      teaching: {
-        summary:
-          "Clear answer. No vocabulary or grammar correction is needed.",
-        vocabulary: [],
-        grammarPatterns: [],
-        nextFocus: "Keep using full Mandarin sentences with the prompt meaning intact.",
-      },
+      exampleBreakdown: [
+        { text: "\u6211", definition: "I" },
+        { text: "\u5728\u5b66", definition: "am studying" },
+        { text: "\u4e2d\u6587", definition: "Chinese" },
+      ],
     };
   }
 }

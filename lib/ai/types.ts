@@ -36,39 +36,10 @@ export type EvaluationInput = {
   englishPrompt?: string;
 };
 
-export type TeachingItemStatus = "missing" | "misused";
-
-export type VocabularyTeachingItem = {
-  term: string;
+export type ExampleSentencePart = {
+  text: string;
   pinyin?: string;
-  meaning: string;
-  status: TeachingItemStatus;
-  learnerAttempt?: string;
-  learnerAttemptPinyin?: string;
-  correction?: string;
-  correctionPinyin?: string;
-  explanation: string;
-  examples: string[];
-  examplePinyin?: string[];
-};
-
-export type GrammarPatternTeachingItem = {
-  pattern: string;
-  status: TeachingItemStatus;
-  explanation: string;
-  learnerAttempt?: string;
-  learnerAttemptPinyin?: string;
-  correction?: string;
-  correctionPinyin?: string;
-  examples: string[];
-  examplePinyin?: string[];
-};
-
-export type TeachingFeedback = {
-  summary: string;
-  vocabulary: VocabularyTeachingItem[];
-  grammarPatterns: GrammarPatternTeachingItem[];
-  nextFocus: string;
+  definition: string;
 };
 
 export type CorrectnessEvaluation = {
@@ -77,7 +48,7 @@ export type CorrectnessEvaluation = {
   meaningScore: number;
   grammarScore: number;
   naturalnessScore?: number;
-  teaching: TeachingFeedback;
+  exampleBreakdown: ExampleSentencePart[];
 };
 
 export type AudioEvaluationInput = {

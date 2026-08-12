@@ -2,7 +2,10 @@ import "server-only";
 
 import OpenAI, { APIError, toFile } from "openai";
 import { AIProviderError } from "./errors";
-import { normalizeTeachingFeedback, teachingFeedbackSchema } from "./teaching";
+import {
+  exampleBreakdownSchema,
+  normalizeExampleBreakdown,
+} from "./example-breakdown";
 import type {
   AudioInput,
   CorrectnessEvaluation,
@@ -88,7 +91,7 @@ export class OpenAIMandarinEvaluator implements MandarinEvaluator {
         model: EVALUATION_MODEL,
         input: buildEvaluationPrompt(input),
         instructions:
-          "You are a strict but helpful Mandarin coach. Score the user's transcript, then return structured learner-facing teaching feedback about vocabulary and Chinese grammar patterns. Return JSON only.",
+          "You are a strict but helpful Mandarin coach. Score the user's transcript, then return a structured breakdown of the example answer. Return JSON only.",
         text: {
           format: {
             type: "json_schema",
@@ -152,14 +155,9 @@ function buildEvaluationPrompt(input: EvaluationInput) {
         "grammarScore measures Mandarin grammar and word order.",
         "Set isCorrect true when the answer would be accepted as correct in a speaking practice exercise.",
         "Do not penalize missing punctuation or minor transcription punctuation differences.",
-        "teaching.summary is for the learner, not an explanation of scoring. Keep it to one concise English sentence.",
-        "teaching.vocabulary should list at most 1 high-impact vocabulary item, and only when the learner missed, misused, or chose a noticeably non-optimal word or phrase. Return an empty array when vocabulary is correct and natural.",
-        "Mark vocabulary as missing when the needed word or phrase is absent, and misused when the learner used the wrong, awkward, or noticeably non-optimal word or phrase. Do not include vocabulary just to introduce new words or reinforce correct usage.",
-        "teaching.grammarPatterns should list at most 1 common beginner Mandarin pattern, and only when the learner missed, misused, or used a noticeably non-optimal structure. Return an empty array when grammar is correct and natural.",
-        "For each teaching item, include 1-2 short Mandarin examples. Do not include pinyin; the app adds pinyin automatically.",
-        "Keep teaching focused: include only corrective items, choosing the single most important vocabulary issue and the single most important grammar pattern at most.",
-        "teaching.nextFocus should be one concrete correction to practice next. If the answer is optimal, say no vocabulary or grammar correction is needed.",
-        "Do not mention scores, points, grading categories, or evaluator reasoning in teaching fields.",
+        "exampleBreakdown should split exampleMandarinAnswer into 2-8 contiguous beginner-useful Mandarin chunks.",
+        "Each exampleBreakdown item must copy its text exactly from exampleMandarinAnswer and define that chunk in concise English.",
+        "Do not include pinyin in exampleBreakdown; the app adds pinyin automatically.",
       ],
     },
     null,
@@ -174,13 +172,13 @@ const evaluationReportSchema = {
     "isCorrect",
     "meaningScore",
     "grammarScore",
-    "teaching",
+    "exampleBreakdown",
   ],
   properties: {
     isCorrect: { type: "boolean" },
     meaningScore: { type: "integer" },
     grammarScore: { type: "integer" },
-    teaching: teachingFeedbackSchema,
+    exampleBreakdown: exampleBreakdownSchema,
   },
 } as const;
 
@@ -203,11 +201,11 @@ function parseEvaluationReport(outputText: string): CorrectnessEvaluation {
     );
   }
 
-  const teaching = normalizeTeachingFeedback(parsed.teaching);
+  const exampleBreakdown = normalizeExampleBreakdown(parsed.exampleBreakdown);
 
-  if (!teaching) {
+  if (!exampleBreakdown) {
     throw new AIProviderError(
-      "The evaluator returned incomplete teaching feedback. Try again.",
+      "The evaluator returned incomplete example breakdown. Try again.",
       502,
     );
   }
@@ -220,7 +218,7 @@ function parseEvaluationReport(outputText: string): CorrectnessEvaluation {
     ]),
     meaningScore: clampScore(parsed.meaningScore),
     grammarScore: clampScore(parsed.grammarScore),
-    teaching,
+    exampleBreakdown,
   };
 }
 
@@ -236,7 +234,7 @@ function isCorrectnessEvaluation(
 
   return (
     typeof report.isCorrect === "boolean" &&
-    normalizeTeachingFeedback(report.teaching) !== null &&
+    normalizeExampleBreakdown(report.exampleBreakdown) !== null &&
     scoreFields.every((field) => Number.isFinite(report[field]))
   );
 }

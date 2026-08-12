@@ -2,7 +2,10 @@ import "server-only";
 
 import { AIProviderError } from "./errors";
 import { clampScore, getOpenAIClient, toProviderError } from "./openai";
-import { normalizeTeachingFeedback, teachingFeedbackSchema } from "./teaching";
+import {
+  exampleBreakdownSchema,
+  normalizeExampleBreakdown,
+} from "./example-breakdown";
 import type {
   AudioCorrectnessEvaluation,
   AudioEvaluationInput,
@@ -104,7 +107,7 @@ const mandarinAudioEvaluationTool = {
         "pronunciationScore",
         "toneScore",
         "pronunciationNeedsWork",
-        "teaching",
+        "exampleBreakdown",
         "pronunciationFeedback",
       ],
       properties: {
@@ -143,7 +146,7 @@ const mandarinAudioEvaluationTool = {
           description:
             "True only when there is a clear, material initial, final, rhythm, or tone issue that a learner should fix next. False for minor, uncertain, or accent-level variation.",
         },
-        teaching: teachingFeedbackSchema,
+        exampleBreakdown: exampleBreakdownSchema,
         pronunciationFeedback: {
           type: "string",
           description:
@@ -161,7 +164,7 @@ function buildAudioEvaluationPrompt(challenge: Challenge) {
       englishPrompt: challenge.englishPrompt,
       exampleMandarinAnswer: challenge.exampleMandarinAnswer,
       gradingRules: [
-        "The speaker is a beginner. Beginner mistakes are expected and must be preserved in transcript because they are the evidence used for teaching.",
+        "The speaker is a beginner. Beginner mistakes are expected and must be preserved in transcript because they are the evidence used for learning.",
         "Listen to the audio directly; do not assume the learner said the example answer or any ideal answer.",
         "First transcribe the learner literally, then evaluate that transcript against the English prompt. Never use the exampleMandarinAnswer to fill in words, modifiers, or meaning that are missing from the audio.",
         "Transcribe exactly what the learner says in the language and script they used, even if it is grammatically wrong, semantically wrong, incomplete, unnatural, mixed Mandarin/English, pinyin, or not a good answer to the prompt.",
@@ -192,14 +195,9 @@ function buildAudioEvaluationPrompt(challenge: Challenge) {
         "If an initial/final/rhythm issue makes a syllable sound like a different Mandarin syllable, cap pronunciationScore at 79. If this happens repeatedly, cap pronunciationScore at 69.",
         "overallScore should reflect practical correctness of the spoken answer. It must be no more than 10 points above meaningScore unless meaningScore is at least 85.",
         "Set isCorrect true only when the answer would be accepted as correct in a speaking practice exercise.",
-        "teaching.summary is learner-facing coaching on correctness or phrasing. Keep it to one concise English sentence.",
-        "teaching.vocabulary should list at most 1 high-impact vocabulary item, and only when the learner missed, misused, or chose a noticeably non-optimal word or phrase. Return an empty array when vocabulary is correct and natural.",
-        "Mark vocabulary as missing when the needed word or phrase is absent, and misused when the learner used the wrong, awkward, or noticeably non-optimal word or phrase. Do not include vocabulary just to introduce new words or reinforce correct usage.",
-        "teaching.grammarPatterns should list at most 1 common beginner Mandarin pattern, and only when the learner missed, misused, or used a noticeably non-optimal structure. Return an empty array when grammar is correct and natural.",
-        "For each teaching item, include 1-2 short Mandarin examples. Do not include pinyin; the app adds pinyin automatically.",
-        "Keep teaching focused: include only corrective items, choosing the single most important vocabulary issue and the single most important grammar pattern at most.",
-        "teaching.nextFocus should be one concrete correction to practice next. If the answer is optimal, say no vocabulary or grammar correction is needed.",
-        "Do not mention scores, points, grading categories, or evaluator reasoning in teaching fields.",
+        "exampleBreakdown should split exampleMandarinAnswer into 2-8 contiguous beginner-useful Mandarin chunks.",
+        "Each exampleBreakdown item must copy its text exactly from exampleMandarinAnswer and define that chunk in concise English.",
+        "Do not include pinyin in exampleBreakdown; the app adds pinyin automatically.",
         "Audit the transcript for tones, initials, finals, and rhythm; do this even when the answer meaning is correct and easy to understand.",
         "Set pronunciationNeedsWork true only for a clear, material issue: a wrong tone category, missing/flattened tone contour, unclear initial/final, or rhythm issue that could mislead a listener or is worth fixing next.",
         "Set pronunciationNeedsWork false for slight accent, recording uncertainty, one-off variation, or issues too minor to be the learner\'s next focus. In that case, return an empty pronunciationFeedback string.",
@@ -237,11 +235,11 @@ function parseAudioEvaluationReport(
     );
   }
 
-  const teaching = normalizeTeachingFeedback(parsed.teaching);
+  const exampleBreakdown = normalizeExampleBreakdown(parsed.exampleBreakdown);
 
-  if (!teaching) {
+  if (!exampleBreakdown) {
     throw new AIProviderError(
-      "The audio evaluator returned incomplete teaching feedback. Try again.",
+      "The audio evaluator returned incomplete example breakdown. Try again.",
       502,
     );
   }
@@ -275,7 +273,7 @@ function parseAudioEvaluationReport(
     pronunciationScore: clampScore(parsed.pronunciationScore),
     toneScore: clampScore(parsed.toneScore),
     pronunciationNeedsWork,
-    teaching,
+    exampleBreakdown,
     ...(pronunciationFeedback ? { pronunciationFeedback } : {}),
     pronunciationProvider: GPT_AUDIO_EVALUATION_MODEL,
   };
@@ -333,7 +331,7 @@ function isAudioCorrectnessEvaluation(
     typeof report.pronunciationNeedsWork === "boolean" &&
     (report.pronunciationFeedback === undefined ||
       typeof report.pronunciationFeedback === "string") &&
-    normalizeTeachingFeedback(report.teaching) !== null &&
+    normalizeExampleBreakdown(report.exampleBreakdown) !== null &&
     scoreFields.every((field) => Number.isFinite(report[field]))
   );
 }

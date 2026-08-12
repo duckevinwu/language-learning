@@ -12,8 +12,8 @@ import type {
   Challenge,
   CorrectnessEvaluation,
   EvaluationMode,
+  ExampleSentencePart,
   PronunciationAssessmentResult,
-  TeachingFeedback,
 } from "@/lib/ai/types";
 import { getChallengeById } from "@/lib/challenge";
 import { romanizeMandarin, romanizeMandarinInContext } from "@/lib/mandarin/pinyin";
@@ -91,14 +91,9 @@ export async function POST(request: Request) {
             overallScore: 0,
             meaningScore: 0,
             grammarScore: 0,
-            teaching: {
-              summary:
-                "Practice this one in Mandarin Chinese with full Mandarin word order.",
-              vocabulary: [],
-              grammarPatterns: [],
-              nextFocus:
-                "Say the full answer in Mandarin, then compare it with the example answer.",
-            },
+            exampleBreakdown: buildFallbackExampleBreakdown(
+              challenge.exampleMandarinAnswer,
+            ),
           },
           challenge,
           evaluationMode,
@@ -182,13 +177,52 @@ function buildEvaluationReport(
     ...correctness,
     overallScore: calculateVisibleOverallScore(correctness, pronunciation),
     evaluationMode,
-    teaching: enrichTeachingFeedback(correctness.teaching),
     transcript,
     transcriptPinyin: romanizeMandarin(transcript),
     exampleMandarinAnswer: challenge.exampleMandarinAnswer,
     exampleMandarinPinyin: romanizeMandarin(challenge.exampleMandarinAnswer),
+    exampleBreakdown: enrichExampleBreakdown(
+      correctness.exampleBreakdown,
+      challenge.exampleMandarinAnswer,
+    ),
     ...pronunciationFields,
   };
+}
+
+function enrichExampleBreakdown(
+  breakdown: ExampleSentencePart[],
+  exampleMandarinAnswer: string,
+): ExampleSentencePart[] {
+  const occurrenceCounts = new Map<string, number>();
+  const parts = breakdown.length
+    ? breakdown
+    : buildFallbackExampleBreakdown(exampleMandarinAnswer);
+
+  return parts.map((part) => {
+    const occurrenceIndex = occurrenceCounts.get(part.text) ?? 0;
+    occurrenceCounts.set(part.text, occurrenceIndex + 1);
+    const pinyin = hasHanCharacters(part.text)
+      ? romanizeMandarinInContext(part.text, exampleMandarinAnswer, {
+          occurrenceIndex,
+        })
+      : undefined;
+
+    return {
+      ...part,
+      ...(pinyin ? { pinyin } : {}),
+    };
+  });
+}
+
+function buildFallbackExampleBreakdown(
+  exampleMandarinAnswer: string,
+): ExampleSentencePart[] {
+  return [
+    {
+      text: exampleMandarinAnswer,
+      definition: "Example answer",
+    },
+  ];
 }
 
 function calculateVisibleOverallScore(
@@ -250,32 +284,5 @@ function enrichPronunciationAssessment(
           }),
         }
       : {}),
-  };
-}
-
-function enrichTeachingFeedback(teaching: TeachingFeedback): TeachingFeedback {
-  return {
-    ...teaching,
-    vocabulary: teaching.vocabulary.map((item) => ({
-      ...item,
-      pinyin: romanizeMandarin(item.term),
-      ...(item.learnerAttempt
-        ? { learnerAttemptPinyin: romanizeMandarin(item.learnerAttempt) }
-        : {}),
-      ...(item.correction
-        ? { correctionPinyin: romanizeMandarin(item.correction) }
-        : {}),
-      examplePinyin: item.examples.map(romanizeMandarin),
-    })),
-    grammarPatterns: teaching.grammarPatterns.map((item) => ({
-      ...item,
-      ...(item.learnerAttempt
-        ? { learnerAttemptPinyin: romanizeMandarin(item.learnerAttempt) }
-        : {}),
-      ...(item.correction
-        ? { correctionPinyin: romanizeMandarin(item.correction) }
-        : {}),
-      examplePinyin: item.examples.map(romanizeMandarin),
-    })),
   };
 }
