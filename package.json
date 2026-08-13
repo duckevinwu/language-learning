@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "generate:breakdowns": "node scripts/generate-example-breakdowns.mjs"
   },
   "dependencies": {
     "microsoft-cognitiveservices-speech-sdk": "^1.51.0",

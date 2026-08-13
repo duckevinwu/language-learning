@@ -1,7 +1,10 @@
 import "server-only";
 
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
-import { convertWavToAzurePcm16Mono } from "./audio-conversion";
+import {
+  convertWavToAzurePcm16Mono,
+  isAzurePcm16MonoWav,
+} from "./audio-conversion";
 import { AIProviderError } from "./errors";
 import { clampScore } from "./openai";
 import type {
@@ -42,6 +45,11 @@ type AzurePronunciationPayload = {
   }>;
 };
 
+type AzureTiming = {
+  label: string;
+  durationMs: number;
+};
+
 export class AzurePronunciationAssessor implements PronunciationAssessor {
   async assess(
     input: PronunciationAssessmentInput,
@@ -60,7 +68,12 @@ export class AzurePronunciationAssessor implements PronunciationAssessor {
       );
     }
 
-    const azureAudio = convertWavToAzurePcm16Mono(input.audio);
+    const timings: AzureTiming[] = [];
+    const azureAudio = measureSync(timings, "azure:prepareAudio", () =>
+      isAzurePcm16MonoWav(input.audio)
+        ? { ...input.audio, filename: "azure-pronunciation.wav" }
+        : convertWavToAzurePcm16Mono(input.audio),
+    );
     const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(key, region);
     speechConfig.speechRecognitionLanguage = AZURE_LANGUAGE;
     speechConfig.outputFormat = SpeechSDK.OutputFormat.Detailed;
@@ -76,14 +89,16 @@ export class AzurePronunciationAssessor implements PronunciationAssessor {
     const pronunciationConfig = new SpeechSDK.PronunciationAssessmentConfig(
       input.referenceText,
       SpeechSDK.PronunciationAssessmentGradingSystem.HundredMark,
-      SpeechSDK.PronunciationAssessmentGranularity.Phoneme,
+      SpeechSDK.PronunciationAssessmentGranularity.Word,
       false,
     );
 
     pronunciationConfig.applyTo(recognizer);
 
     try {
-      const result = await recognizeOnce(recognizer);
+      const result = await measureAsync(timings, "azure:recognizeOnce", () =>
+        recognizeOnce(recognizer),
+      );
 
       if (result.reason !== SpeechSDK.ResultReason.RecognizedSpeech) {
         throw new AIProviderError(
@@ -96,7 +111,9 @@ export class AzurePronunciationAssessor implements PronunciationAssessor {
         SpeechSDK.PropertyId.SpeechServiceResponse_JsonResult,
       );
 
-      return parseAzurePronunciation(JSON.parse(resultJson));
+      return measureSync(timings, "azure:parseResult", () =>
+        parseAzurePronunciation(JSON.parse(resultJson)),
+      );
     } catch (error) {
       if (error instanceof AIProviderError) {
         throw error;
@@ -109,10 +126,46 @@ export class AzurePronunciationAssessor implements PronunciationAssessor {
         502,
       );
     } finally {
+      console.info("Azure pronunciation timings", { timings });
       recognizer.close();
       audioConfig.close();
     }
   }
+}
+
+async function measureAsync<T>(
+  timings: AzureTiming[],
+  label: string,
+  task: () => Promise<T>,
+): Promise<T> {
+  const startedAt = performance.now();
+
+  try {
+    return await task();
+  } finally {
+    recordTiming(timings, label, startedAt);
+  }
+}
+
+function measureSync<T>(
+  timings: AzureTiming[],
+  label: string,
+  task: () => T,
+): T {
+  const startedAt = performance.now();
+
+  try {
+    return task();
+  } finally {
+    recordTiming(timings, label, startedAt);
+  }
+}
+
+function recordTiming(timings: AzureTiming[], label: string, startedAt: number) {
+  timings.push({
+    label,
+    durationMs: Math.round((performance.now() - startedAt) * 10) / 10,
+  });
 }
 
 function recognizeOnce(

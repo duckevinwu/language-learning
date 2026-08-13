@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type {
   EvaluationMode,
   EvaluationReport,
+  EvaluationTiming,
   PublicDailyChallenge,
 } from "@/lib/ai/types";
 import { BrowserSpeechSynthesisProvider } from "@/lib/speech/browser-speech-synthesis";
@@ -11,6 +12,7 @@ import { BrowserSpeechSynthesisProvider } from "@/lib/speech/browser-speech-synt
 const PASSING_SCORE = 75;
 const CHALLENGE_COUNT = 3;
 const MAX_RECORDING_SECONDS = 30;
+const CLIENT_WAV_SAMPLE_RATE = 16000;
 
 type RecorderStatus =
   | "idle"
@@ -322,12 +324,19 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
       return;
     }
 
+    const submitStartedAt = performance.now();
+    const clientTimings: EvaluationTiming[] = [];
+
     setStatus("submitting");
     setError(null);
     clearCurrentReport();
 
     try {
-      const submissionAudio = await convertBlobToWav(audioBlob);
+      const submissionAudio = await measureClientAsync(
+        clientTimings,
+        "client:convertToWav",
+        () => convertBlobToWav(audioBlob),
+      );
       const filename = buildRecordingFilename(submissionAudio);
       const formData = new FormData();
 
@@ -335,11 +344,32 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
       formData.append("challengeId", currentChallenge.id);
       formData.append("evaluationMode", evaluationMode);
 
-      const response = await fetch("/api/evaluate", {
-        method: "POST",
-        body: formData,
-      });
-      const payload = await response.json();
+      const response = await measureClientAsync(
+        clientTimings,
+        "client:networkAndServer",
+        () =>
+          fetch("/api/evaluate", {
+            method: "POST",
+            body: formData,
+          }),
+      );
+      const payload = (await measureClientAsync(
+        clientTimings,
+        "client:readJson",
+        () => response.json(),
+      )) as EvaluationReport & { error?: string };
+
+      recordClientTiming(clientTimings, "client:total", submitStartedAt);
+
+      const debugTimings = {
+        ...payload.debugTimings,
+        client: clientTimings,
+        audioBytes: {
+          original: audioBlob.size,
+          submitted: submissionAudio.size,
+        },
+      };
+      logAudioAnalysisTimings(debugTimings);
 
       if (!response.ok) {
         throw new Error(payload?.error || "Could not evaluate this recording.");
@@ -347,11 +377,20 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
 
       setStepReports((previousReports) => {
         const nextReports = [...previousReports];
-        nextReports[currentStepIndex] = payload as EvaluationReport;
+        nextReports[currentStepIndex] = {
+          ...payload,
+          debugTimings,
+        };
         return nextReports;
       });
       setStatus("complete");
     } catch (caughtError) {
+      recordClientTiming(
+        clientTimings,
+        "client:totalBeforeError",
+        submitStartedAt,
+      );
+      logAudioAnalysisTimings({ client: clientTimings });
       setError(
         caughtError instanceof Error
           ? caughtError.message
@@ -697,12 +736,51 @@ function DayCompleteView({
     </div>
   );
 }
+
 function formatRecordingTime(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
 
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
+
+function measureClientAsync<T>(
+  timings: EvaluationTiming[],
+  label: string,
+  task: () => Promise<T>,
+): Promise<T> {
+  const startedAt = performance.now();
+
+  return task().finally(() => {
+    recordClientTiming(timings, label, startedAt);
+  });
+}
+
+function recordClientTiming(
+  timings: EvaluationTiming[],
+  label: string,
+  startedAt: number,
+) {
+  timings.push({
+    label,
+    durationMs: Math.round((performance.now() - startedAt) * 10) / 10,
+  });
+}
+
+function logAudioAnalysisTimings(
+  debugTimings: EvaluationReport["debugTimings"],
+) {
+  if (!debugTimings) {
+    return;
+  }
+
+  console.info("Audio analysis debug", debugTimings);
+  console.table([
+    ...(debugTimings.client ?? []),
+    ...(debugTimings.server ?? []),
+  ]);
+}
+
 function buildRecordingFilename(blob: Blob) {
   return blob.type === "audio/wav"
     ? "mandarin-practice.wav"
@@ -742,14 +820,79 @@ async function convertBlobToWav(blob: Blob) {
 }
 
 function encodeWav(audioBuffer: AudioBuffer, maxDurationSeconds?: number) {
-  const channelCount = audioBuffer.numberOfChannels;
-  const sampleRate = audioBuffer.sampleRate;
-  const sampleCount = maxDurationSeconds
-    ? Math.min(audioBuffer.length, Math.floor(sampleRate * maxDurationSeconds))
+  const sourceSampleCount = maxDurationSeconds
+    ? Math.min(
+        audioBuffer.length,
+        Math.floor(audioBuffer.sampleRate * maxDurationSeconds),
+      )
     : audioBuffer.length;
+  const monoSamples = mixAudioBufferToMono(audioBuffer, sourceSampleCount);
+  const outputSamples =
+    audioBuffer.sampleRate === CLIENT_WAV_SAMPLE_RATE
+      ? monoSamples
+      : resampleAudioSamples(
+          monoSamples,
+          audioBuffer.sampleRate,
+          CLIENT_WAV_SAMPLE_RATE,
+        );
+
+  return encodePcm16MonoWav(outputSamples, CLIENT_WAV_SAMPLE_RATE);
+}
+
+function mixAudioBufferToMono(
+  audioBuffer: AudioBuffer,
+  sampleCount: number,
+): Float32Array {
+  const monoSamples = new Float32Array(sampleCount);
+
+  for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex += 1) {
+    let total = 0;
+
+    for (
+      let channelIndex = 0;
+      channelIndex < audioBuffer.numberOfChannels;
+      channelIndex += 1
+    ) {
+      total += audioBuffer.getChannelData(channelIndex)[sampleIndex] ?? 0;
+    }
+
+    monoSamples[sampleIndex] = total / audioBuffer.numberOfChannels;
+  }
+
+  return monoSamples;
+}
+
+function resampleAudioSamples(
+  samples: Float32Array,
+  sourceSampleRate: number,
+  targetSampleRate: number,
+): Float32Array {
+  const targetLength = Math.max(
+    1,
+    Math.round((samples.length * targetSampleRate) / sourceSampleRate),
+  );
+  const output = new Float32Array(targetLength);
+  const ratio = sourceSampleRate / targetSampleRate;
+
+  for (let index = 0; index < targetLength; index += 1) {
+    const sourceIndex = index * ratio;
+    const lowerIndex = Math.floor(sourceIndex);
+    const upperIndex = Math.min(lowerIndex + 1, samples.length - 1);
+    const weight = sourceIndex - lowerIndex;
+    const lower = samples[lowerIndex] ?? 0;
+    const upper = samples[upperIndex] ?? lower;
+
+    output[index] = lower + (upper - lower) * weight;
+  }
+
+  return output;
+}
+
+function encodePcm16MonoWav(samples: Float32Array, sampleRate: number) {
+  const channelCount = 1;
   const bytesPerSample = 2;
   const blockAlign = channelCount * bytesPerSample;
-  const dataLength = sampleCount * blockAlign;
+  const dataLength = samples.length * blockAlign;
   const buffer = new ArrayBuffer(44 + dataLength);
   const view = new DataView(buffer);
   let offset = 0;
@@ -784,17 +927,12 @@ function encodeWav(audioBuffer: AudioBuffer, maxDurationSeconds?: number) {
   view.setUint32(offset, dataLength, true);
   offset += 4;
 
-  for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex += 1) {
-    for (let channelIndex = 0; channelIndex < channelCount; channelIndex += 1) {
-      const sample = Math.max(
-        -1,
-        Math.min(1, audioBuffer.getChannelData(channelIndex)[sampleIndex]),
-      );
-      const pcm = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+  for (const sample of samples) {
+    const clamped = Math.max(-1, Math.min(1, sample));
+    const pcm = clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff;
 
-      view.setInt16(offset, pcm, true);
-      offset += bytesPerSample;
-    }
+    view.setInt16(offset, pcm, true);
+    offset += bytesPerSample;
   }
 
   return buffer;

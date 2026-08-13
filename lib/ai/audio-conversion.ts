@@ -9,7 +9,28 @@ type DecodedWav = {
   samples: Float32Array[];
 };
 
+type WavFormat = {
+  audioFormat: number;
+  channelCount: number;
+  sampleRate: number;
+  bitsPerSample: number;
+  dataOffset: number;
+  dataLength: number;
+};
+
 const TARGET_SAMPLE_RATE = 16000;
+
+export function isAzurePcm16MonoWav(input: AudioInput) {
+  const format = readWavFormat(input.data);
+
+  return (
+    format !== null &&
+    format.audioFormat === 1 &&
+    format.bitsPerSample === 16 &&
+    format.channelCount === 1 &&
+    format.sampleRate === TARGET_SAMPLE_RATE
+  );
+}
 
 export function convertWavToAzurePcm16Mono(input: AudioInput): AudioInput {
   const decoded = decodePcmWav(input.data);
@@ -28,14 +49,15 @@ export function convertWavToAzurePcm16Mono(input: AudioInput): AudioInput {
   };
 }
 
-function decodePcmWav(data: ArrayBuffer): DecodedWav {
+function readWavFormat(data: ArrayBuffer): WavFormat | null {
   const view = new DataView(data);
 
+  if (view.byteLength < 44) {
+    return null;
+  }
+
   if (readAscii(view, 0, 4) !== "RIFF" || readAscii(view, 8, 4) !== "WAVE") {
-    throw new AIProviderError(
-      "Standard evaluation requires a WAV recording.",
-      400,
-    );
+    return null;
   }
 
   let offset = 12;
@@ -76,9 +98,35 @@ function decodePcmWav(data: ArrayBuffer): DecodedWav {
     dataOffset === null ||
     dataLength === null
   ) {
+    return null;
+  }
+
+  return {
+    audioFormat,
+    channelCount,
+    sampleRate,
+    bitsPerSample,
+    dataOffset,
+    dataLength,
+  };
+}
+
+function decodePcmWav(data: ArrayBuffer): DecodedWav {
+  const view = new DataView(data);
+  const format = readWavFormat(data);
+
+  if (!format) {
     throw new AIProviderError("The uploaded WAV file is incomplete.", 400);
   }
 
+  const {
+    audioFormat,
+    channelCount,
+    sampleRate,
+    bitsPerSample,
+    dataOffset,
+    dataLength,
+  } = format;
   const isPcm16 = audioFormat === 1 && bitsPerSample === 16;
   const isFloat32 = audioFormat === 3 && bitsPerSample === 32;
 

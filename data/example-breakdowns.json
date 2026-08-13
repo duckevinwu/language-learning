@@ -1,0 +1,2862 @@
+{
+  "beginner-001-greet-neighbor": [
+    {
+      "text": "你好",
+      "definition": "hello"
+    },
+    {
+      "text": "你最近怎么样",
+      "definition": "how have you been recently"
+    }
+  ],
+  "beginner-002-introduce-name": [
+    {
+      "text": "你好",
+      "definition": "hello"
+    },
+    {
+      "text": "我叫Kevin",
+      "definition": "my name is Kevin"
+    }
+  ],
+  "beginner-003-meet-pleasure": [
+    {
+      "text": "很高兴",
+      "definition": "very happy"
+    },
+    {
+      "text": "认识你",
+      "definition": "to meet you"
+    }
+  ],
+  "beginner-004-say-goodbye": [
+    {
+      "text": "再见",
+      "definition": "goodbye"
+    },
+    {
+      "text": "明天见",
+      "definition": "see you tomorrow"
+    }
+  ],
+  "beginner-005-thank-help": [
+    {
+      "text": "谢谢你",
+      "definition": "thank you"
+    },
+    {
+      "text": "帮我",
+      "definition": "help me"
+    }
+  ],
+  "beginner-006-apologize-late": [
+    {
+      "text": "对不起",
+      "definition": "sorry"
+    },
+    {
+      "text": "我迟到了",
+      "definition": "I am late"
+    }
+  ],
+  "beginner-007-ask-surname": [
+    {
+      "text": "请问",
+      "definition": "excuse me / may I ask"
+    },
+    {
+      "text": "您贵姓",
+      "definition": "what is your last name"
+    }
+  ],
+  "beginner-008-say-long-time": [
+    {
+      "text": "好久不见",
+      "definition": "long time no see"
+    }
+  ],
+  "beginner-009-ask-country": [
+    {
+      "text": "你是",
+      "definition": "you are"
+    },
+    {
+      "text": "哪国人",
+      "definition": "from which country"
+    }
+  ],
+  "beginner-010-answer-country": [
+    {
+      "text": "我是",
+      "definition": "I am"
+    },
+    {
+      "text": "美国人",
+      "definition": "American"
+    }
+  ],
+  "beginner-011-order-coffee": [
+    {
+      "text": "我要",
+      "definition": "I want / need to"
+    },
+    {
+      "text": "一杯",
+      "definition": "one cup/glass"
+    },
+    {
+      "text": "热咖啡",
+      "definition": "hot coffee"
+    }
+  ],
+  "beginner-012-order-no-spicy": [
+    {
+      "text": "请不要",
+      "definition": "please do not"
+    },
+    {
+      "text": "放辣",
+      "definition": "make it spicy / add chili"
+    }
+  ],
+  "beginner-013-ask-menu": [
+    {
+      "text": "你们有",
+      "definition": "do you have"
+    },
+    {
+      "text": "英文菜单",
+      "definition": "English menu"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "beginner-014-water": [
+    {
+      "text": "请给我",
+      "definition": "please give me"
+    },
+    {
+      "text": "一杯水",
+      "definition": "a glass of water"
+    }
+  ],
+  "beginner-015-check-please": [
+    {
+      "text": "请买单",
+      "definition": "the bill, please"
+    }
+  ],
+  "beginner-016-vegetarian": [
+    {
+      "text": "我不吃",
+      "definition": "I do not eat"
+    },
+    {
+      "text": "肉",
+      "definition": "meat"
+    }
+  ],
+  "beginner-017-takeout": [
+    {
+      "text": "我要",
+      "definition": "I want / need to"
+    },
+    {
+      "text": "打包",
+      "definition": "to go / take out"
+    }
+  ],
+  "beginner-018-allergy": [
+    {
+      "text": "我对",
+      "definition": "I am toward / allergic to"
+    },
+    {
+      "text": "花生过敏",
+      "definition": "allergic to peanuts"
+    }
+  ],
+  "beginner-019-tastes-good": [
+    {
+      "text": "这个菜",
+      "definition": "this dish"
+    },
+    {
+      "text": "很好吃",
+      "definition": "is delicious"
+    }
+  ],
+  "beginner-020-more-rice": [
+    {
+      "text": "请",
+      "definition": "please"
+    },
+    {
+      "text": "再给我",
+      "definition": "give me another"
+    },
+    {
+      "text": "一碗米饭",
+      "definition": "one bowl of rice"
+    }
+  ],
+  "beginner-021-ask-price": [
+    {
+      "text": "这个",
+      "definition": "this"
+    },
+    {
+      "text": "多少钱",
+      "definition": "how much money"
+    }
+  ],
+  "beginner-022-too-expensive": [
+    {
+      "text": "太贵了",
+      "definition": "too expensive"
+    }
+  ],
+  "beginner-023-smaller-size": [
+    {
+      "text": "有",
+      "definition": "have / there is"
+    },
+    {
+      "text": "小一点的",
+      "definition": "a smaller size"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "beginner-024-try-on": [
+    {
+      "text": "我可以",
+      "definition": "can I"
+    },
+    {
+      "text": "试一下",
+      "definition": "try it"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "beginner-025-pay-card": [
+    {
+      "text": "可以",
+      "definition": "can / may"
+    },
+    {
+      "text": "刷卡",
+      "definition": "pay by card"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "beginner-026-buy-this": [
+    {
+      "text": "我要",
+      "definition": "I want / need to"
+    },
+    {
+      "text": "买这个",
+      "definition": "buy this"
+    }
+  ],
+  "beginner-027-just-looking": [
+    {
+      "text": "我只是",
+      "definition": "I am just"
+    },
+    {
+      "text": "看看",
+      "definition": "looking"
+    }
+  ],
+  "beginner-028-receipt": [
+    {
+      "text": "请给我",
+      "definition": "please give me"
+    },
+    {
+      "text": "发票",
+      "definition": "receipt / invoice"
+    }
+  ],
+  "beginner-029-different-color": [
+    {
+      "text": "有",
+      "definition": "have / there is"
+    },
+    {
+      "text": "别的颜色",
+      "definition": "another color"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "beginner-030-discount": [
+    {
+      "text": "可以",
+      "definition": "can / may"
+    },
+    {
+      "text": "便宜一点",
+      "definition": "a little cheaper"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "beginner-031-where-bathroom": [
+    {
+      "text": "洗手间",
+      "definition": "restroom"
+    },
+    {
+      "text": "在哪里",
+      "definition": "where is"
+    }
+  ],
+  "beginner-032-go-straight": [
+    {
+      "text": "一直",
+      "definition": "straight"
+    },
+    {
+      "text": "往前走",
+      "definition": "go forward"
+    }
+  ],
+  "beginner-033-turn-left": [
+    {
+      "text": "在路口",
+      "definition": "at the intersection"
+    },
+    {
+      "text": "左转",
+      "definition": "turn left"
+    }
+  ],
+  "beginner-034-near-hotel": [
+    {
+      "text": "酒店",
+      "definition": "hotel"
+    },
+    {
+      "text": "在附近",
+      "definition": "nearby"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "beginner-035-far": [
+    {
+      "text": "离这里",
+      "definition": "from here"
+    },
+    {
+      "text": "远吗",
+      "definition": "is it far"
+    }
+  ],
+  "beginner-036-lost": [
+    {
+      "text": "我迷路了",
+      "definition": "I am lost"
+    }
+  ],
+  "beginner-037-map": [
+    {
+      "text": "请",
+      "definition": "please"
+    },
+    {
+      "text": "在地图上",
+      "definition": "on the map"
+    },
+    {
+      "text": "给我看",
+      "definition": "show me"
+    }
+  ],
+  "beginner-038-next-to-bank": [
+    {
+      "text": "咖啡馆",
+      "definition": "cafe"
+    },
+    {
+      "text": "在银行旁边",
+      "definition": "next to the bank"
+    }
+  ],
+  "beginner-039-opposite": [
+    {
+      "text": "超市",
+      "definition": "supermarket"
+    },
+    {
+      "text": "在公园对面",
+      "definition": "across from the park"
+    }
+  ],
+  "beginner-040-subway-entrance": [
+    {
+      "text": "地铁口",
+      "definition": "subway entrance"
+    },
+    {
+      "text": "在哪里",
+      "definition": "where is"
+    }
+  ],
+  "beginner-041-taxi-airport": [
+    {
+      "text": "我要",
+      "definition": "I want / need to"
+    },
+    {
+      "text": "去机场",
+      "definition": "go to the airport"
+    }
+  ],
+  "beginner-042-bus-stop": [
+    {
+      "text": "公交车站",
+      "definition": "bus stop"
+    },
+    {
+      "text": "在哪里",
+      "definition": "where is"
+    }
+  ],
+  "beginner-043-which-line": [
+    {
+      "text": "哪条地铁线",
+      "definition": "which subway line"
+    },
+    {
+      "text": "到火车站",
+      "definition": "to the train station"
+    }
+  ],
+  "beginner-044-buy-ticket": [
+    {
+      "text": "我要",
+      "definition": "I want / need to"
+    },
+    {
+      "text": "买一张票",
+      "definition": "buy one ticket"
+    }
+  ],
+  "beginner-045-arrival-time": [
+    {
+      "text": "火车",
+      "definition": "train"
+    },
+    {
+      "text": "几点到",
+      "definition": "what time arrives"
+    }
+  ],
+  "beginner-046-missed-bus": [
+    {
+      "text": "我错过了",
+      "definition": "I missed"
+    },
+    {
+      "text": "公交车",
+      "definition": "bus"
+    }
+  ],
+  "beginner-047-get-off-here": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "在这里下车",
+      "definition": "get off here"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "beginner-048-too-far-walk": [
+    {
+      "text": "走路",
+      "definition": "walking"
+    },
+    {
+      "text": "太远了",
+      "definition": "too far"
+    }
+  ],
+  "beginner-049-taxi-cost": [
+    {
+      "text": "打车",
+      "definition": "take a taxi"
+    },
+    {
+      "text": "大概多少钱",
+      "definition": "about how much"
+    }
+  ],
+  "beginner-050-ride-share": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "已经",
+      "definition": "already"
+    },
+    {
+      "text": "叫车了",
+      "definition": "called a car"
+    }
+  ],
+  "beginner-051-meet-tomorrow": [
+    {
+      "text": "你",
+      "definition": "you"
+    },
+    {
+      "text": "明天",
+      "definition": "tomorrow"
+    },
+    {
+      "text": "有空吗",
+      "definition": "are you free"
+    }
+  ],
+  "beginner-052-meet-time": [
+    {
+      "text": "我们",
+      "definition": "we"
+    },
+    {
+      "text": "三点见",
+      "definition": "meet at three"
+    },
+    {
+      "text": "吧",
+      "definition": "suggestion particle"
+    }
+  ],
+  "beginner-053-cancel-plan": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "今天",
+      "definition": "today"
+    },
+    {
+      "text": "要",
+      "definition": "want / need to"
+    },
+    {
+      "text": "取消计划",
+      "definition": "cancel the plan"
+    }
+  ],
+  "beginner-054-reschedule": [
+    {
+      "text": "可以",
+      "definition": "can / may"
+    },
+    {
+      "text": "改到星期五",
+      "definition": "change to Friday"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "beginner-055-busy-now": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "现在",
+      "definition": "right now"
+    },
+    {
+      "text": "很忙",
+      "definition": "very busy"
+    }
+  ],
+  "beginner-056-after-work": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "下班以后",
+      "definition": "after work"
+    },
+    {
+      "text": "可以去",
+      "definition": "can go"
+    }
+  ],
+  "beginner-057-weekend-plan": [
+    {
+      "text": "你",
+      "definition": "you"
+    },
+    {
+      "text": "这个周末",
+      "definition": "this weekend"
+    },
+    {
+      "text": "做什么",
+      "definition": "do what"
+    }
+  ],
+  "beginner-058-late-five": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "会晚",
+      "definition": "will be late"
+    },
+    {
+      "text": "五分钟",
+      "definition": "five minutes"
+    }
+  ],
+  "beginner-059-call-tonight": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "今晚",
+      "definition": "tonight"
+    },
+    {
+      "text": "可以",
+      "definition": "can / may"
+    },
+    {
+      "text": "给你",
+      "definition": "to you"
+    },
+    {
+      "text": "打电话",
+      "definition": "call"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "beginner-060-no-time": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "今天",
+      "definition": "today"
+    },
+    {
+      "text": "没有时间",
+      "definition": "do not have time"
+    }
+  ],
+  "beginner-061-study-chinese": [
+    {
+      "text": "我在学",
+      "definition": "I am studying"
+    },
+    {
+      "text": "中文",
+      "definition": "Chinese"
+    }
+  ],
+  "beginner-062-work-office": [
+    {
+      "text": "我在",
+      "definition": "I am at / I am currently"
+    },
+    {
+      "text": "办公室",
+      "definition": "office"
+    },
+    {
+      "text": "工作",
+      "definition": "work"
+    }
+  ],
+  "beginner-063-have-meeting": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "今天",
+      "definition": "today"
+    },
+    {
+      "text": "下午",
+      "definition": "afternoon"
+    },
+    {
+      "text": "有会议",
+      "definition": "have a meeting"
+    }
+  ],
+  "beginner-064-homework": [
+    {
+      "text": "我要",
+      "definition": "I want / need to"
+    },
+    {
+      "text": "做作业",
+      "definition": "do homework"
+    }
+  ],
+  "beginner-065-ask-question": [
+    {
+      "text": "老师",
+      "definition": "teacher"
+    },
+    {
+      "text": "我有",
+      "definition": "I have"
+    },
+    {
+      "text": "一个问题",
+      "definition": "a question"
+    }
+  ],
+  "beginner-066-dont-understand": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "不明白",
+      "definition": "do not understand"
+    }
+  ],
+  "beginner-067-repeat-please": [
+    {
+      "text": "请",
+      "definition": "please"
+    },
+    {
+      "text": "再说一遍",
+      "definition": "say it again"
+    }
+  ],
+  "beginner-068-speak-slowly": [
+    {
+      "text": "请",
+      "definition": "please"
+    },
+    {
+      "text": "说慢一点",
+      "definition": "speak more slowly"
+    }
+  ],
+  "beginner-069-finish-work": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "做完工作",
+      "definition": "finished work"
+    },
+    {
+      "text": "了",
+      "definition": "completed/change marker"
+    }
+  ],
+  "beginner-070-email": [
+    {
+      "text": "我会",
+      "definition": "I will"
+    },
+    {
+      "text": "发邮件",
+      "definition": "send an email"
+    }
+  ],
+  "beginner-071-not-feel-well": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "不舒服",
+      "definition": "not feel well"
+    }
+  ],
+  "beginner-072-headache": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "头疼",
+      "definition": "headache"
+    }
+  ],
+  "beginner-073-doctor": [
+    {
+      "text": "我要",
+      "definition": "I want / need to"
+    },
+    {
+      "text": "看医生",
+      "definition": "see a doctor"
+    }
+  ],
+  "beginner-074-medicine": [
+    {
+      "text": "哪里",
+      "definition": "where"
+    },
+    {
+      "text": "可以",
+      "definition": "can / may"
+    },
+    {
+      "text": "买药",
+      "definition": "buy medicine"
+    }
+  ],
+  "beginner-075-fever": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "发烧了",
+      "definition": "have a fever"
+    }
+  ],
+  "beginner-076-cold": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "感冒了",
+      "definition": "caught a cold"
+    }
+  ],
+  "beginner-077-water-please": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "嗓子疼",
+      "definition": "throat hurts"
+    },
+    {
+      "text": "请给我",
+      "definition": "please give me"
+    },
+    {
+      "text": "一点水",
+      "definition": "some water"
+    }
+  ],
+  "beginner-078-rest": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "今天",
+      "definition": "today"
+    },
+    {
+      "text": "需要",
+      "definition": "need to"
+    },
+    {
+      "text": "休息",
+      "definition": "rest"
+    }
+  ],
+  "beginner-079-hospital": [
+    {
+      "text": "医院",
+      "definition": "hospital"
+    },
+    {
+      "text": "在哪里",
+      "definition": "where is"
+    }
+  ],
+  "beginner-080-better-now": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "现在",
+      "definition": "right now"
+    },
+    {
+      "text": "好多了",
+      "definition": "much better"
+    }
+  ],
+  "beginner-081-home-address": [
+    {
+      "text": "我家",
+      "definition": "my home"
+    },
+    {
+      "text": "在",
+      "definition": "at / in / currently"
+    },
+    {
+      "text": "地铁站附近",
+      "definition": "near the subway station"
+    }
+  ],
+  "beginner-082-room-small": [
+    {
+      "text": "我的房间",
+      "definition": "my room"
+    },
+    {
+      "text": "有点小",
+      "definition": "a little small"
+    }
+  ],
+  "beginner-083-clean-house": [
+    {
+      "text": "我要",
+      "definition": "I want / need to"
+    },
+    {
+      "text": "打扫房子",
+      "definition": "clean the house"
+    }
+  ],
+  "beginner-084-wifi": [
+    {
+      "text": "无线网密码",
+      "definition": "Wi-Fi password"
+    },
+    {
+      "text": "是什么",
+      "definition": "is what"
+    }
+  ],
+  "beginner-085-lights": [
+    {
+      "text": "请",
+      "definition": "please"
+    },
+    {
+      "text": "关灯",
+      "definition": "turn off the light"
+    }
+  ],
+  "beginner-086-too-noisy": [
+    {
+      "text": "这里",
+      "definition": "here"
+    },
+    {
+      "text": "太吵了",
+      "definition": "too noisy"
+    }
+  ],
+  "beginner-087-key": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "忘了带",
+      "definition": "forgot to bring"
+    },
+    {
+      "text": "钥匙",
+      "definition": "key"
+    }
+  ],
+  "beginner-088-cook-dinner": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "在家",
+      "definition": "at home"
+    },
+    {
+      "text": "做晚饭",
+      "definition": "cook dinner"
+    }
+  ],
+  "beginner-089-laundry": [
+    {
+      "text": "我要",
+      "definition": "I want / need to"
+    },
+    {
+      "text": "洗衣服",
+      "definition": "wash clothes"
+    }
+  ],
+  "beginner-090-live-alone": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "一个人住",
+      "definition": "live alone"
+    }
+  ],
+  "beginner-091-like-tea": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "喜欢",
+      "definition": "like"
+    },
+    {
+      "text": "喝茶",
+      "definition": "drinking tea"
+    }
+  ],
+  "beginner-092-dislike-coffee": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "不喜欢",
+      "definition": "do not like"
+    },
+    {
+      "text": "咖啡",
+      "definition": "coffee"
+    }
+  ],
+  "beginner-093-prefer-noodles": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "比较喜欢",
+      "definition": "prefer"
+    },
+    {
+      "text": "面条",
+      "definition": "noodles"
+    }
+  ],
+  "beginner-094-favorite-color": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "最喜欢的颜色",
+      "definition": "favorite color"
+    },
+    {
+      "text": "是",
+      "definition": "is / are"
+    },
+    {
+      "text": "蓝色",
+      "definition": "blue"
+    }
+  ],
+  "beginner-095-like-running": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "喜欢",
+      "definition": "like"
+    },
+    {
+      "text": "早上",
+      "definition": "morning"
+    },
+    {
+      "text": "跑步",
+      "definition": "run"
+    }
+  ],
+  "beginner-096-weather-hot": [
+    {
+      "text": "今天",
+      "definition": "today"
+    },
+    {
+      "text": "天气",
+      "definition": "weather"
+    },
+    {
+      "text": "很热",
+      "definition": "very hot"
+    }
+  ],
+  "beginner-097-raining": [
+    {
+      "text": "外面",
+      "definition": "outside"
+    },
+    {
+      "text": "在下雨",
+      "definition": "is raining"
+    }
+  ],
+  "beginner-098-weekend-good": [
+    {
+      "text": "你",
+      "definition": "you"
+    },
+    {
+      "text": "周末",
+      "definition": "weekend"
+    },
+    {
+      "text": "过得好吗",
+      "definition": "was it good"
+    }
+  ],
+  "beginner-099-tired-today": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "今天",
+      "definition": "today"
+    },
+    {
+      "text": "有点累",
+      "definition": "a little tired"
+    }
+  ],
+  "beginner-100-movie-good": [
+    {
+      "text": "这部电影",
+      "definition": "this movie"
+    },
+    {
+      "text": "很好看",
+      "definition": "very good to watch"
+    }
+  ],
+  "intermediate-001-confirm-address": [
+    {
+      "text": "你",
+      "definition": "you"
+    },
+    {
+      "text": "能帮我",
+      "definition": "could help me"
+    },
+    {
+      "text": "确认一下",
+      "definition": "check/confirm"
+    },
+    {
+      "text": "这个",
+      "definition": "this"
+    },
+    {
+      "text": "地址",
+      "definition": "address"
+    },
+    {
+      "text": "对不对",
+      "definition": "whether correct"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "intermediate-002-forgot-vegetables": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "本来",
+      "definition": "originally"
+    },
+    {
+      "text": "打算",
+      "definition": "planned to"
+    },
+    {
+      "text": "做饭",
+      "definition": "cook"
+    },
+    {
+      "text": "可是",
+      "definition": "but"
+    },
+    {
+      "text": "忘了",
+      "definition": "forgot"
+    },
+    {
+      "text": "买菜",
+      "definition": "buy vegetables"
+    }
+  ],
+  "intermediate-003-running-late": [
+    {
+      "text": "如果",
+      "definition": "if"
+    },
+    {
+      "text": "路上堵车",
+      "definition": "traffic on the road"
+    },
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "可能会",
+      "definition": "may"
+    },
+    {
+      "text": "晚到",
+      "definition": "arrive late"
+    },
+    {
+      "text": "十分钟左右",
+      "definition": "about ten minutes"
+    }
+  ],
+  "intermediate-004-less-sugar": [
+    {
+      "text": "这杯饮料",
+      "definition": "this drink"
+    },
+    {
+      "text": "可以",
+      "definition": "can / may"
+    },
+    {
+      "text": "做成",
+      "definition": "make into / prepare as"
+    },
+    {
+      "text": "少糖去冰",
+      "definition": "less sugar and no ice"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "intermediate-005-change-meeting": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "今天",
+      "definition": "today"
+    },
+    {
+      "text": "下午",
+      "definition": "afternoon"
+    },
+    {
+      "text": "临时有事",
+      "definition": "something came up"
+    },
+    {
+      "text": "所以能",
+      "definition": "can we move the meeting to tomorrow morning"
+    },
+    {
+      "text": "把会议改到",
+      "definition": "move the meeting to"
+    },
+    {
+      "text": "明天上午",
+      "definition": "tomorrow morning"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "intermediate-006-usual-order": [
+    {
+      "text": "这里大家",
+      "definition": "people here"
+    },
+    {
+      "text": "一般",
+      "definition": "usually"
+    },
+    {
+      "text": "会点什么",
+      "definition": "order what"
+    }
+  ],
+  "intermediate-007-compare-quality": [
+    {
+      "text": "这个",
+      "definition": "this"
+    },
+    {
+      "text": "看起来不错",
+      "definition": "looks good"
+    },
+    {
+      "text": "不过",
+      "definition": "however / but"
+    },
+    {
+      "text": "我想",
+      "definition": "I want to"
+    },
+    {
+      "text": "先",
+      "definition": "first"
+    },
+    {
+      "text": "比较一下",
+      "definition": "compare"
+    },
+    {
+      "text": "质量",
+      "definition": "quality"
+    }
+  ],
+  "intermediate-008-invoice-reimbursement": [
+    {
+      "text": "请给我",
+      "definition": "please give me"
+    },
+    {
+      "text": "开发票",
+      "definition": "issue an invoice"
+    },
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "需要报销",
+      "definition": "need reimbursement"
+    }
+  ],
+  "intermediate-009-speak-slowly": [
+    {
+      "text": "我的",
+      "definition": "my"
+    },
+    {
+      "text": "中文",
+      "definition": "Chinese"
+    },
+    {
+      "text": "还",
+      "definition": "still / also"
+    },
+    {
+      "text": "不太流利",
+      "definition": "not very fluent"
+    },
+    {
+      "text": "所以你能",
+      "definition": "could you speak a little more slowly"
+    },
+    {
+      "text": "说慢一点",
+      "definition": "speak more slowly"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "intermediate-010-missed-sentence": [
+    {
+      "text": "前面的部分",
+      "definition": "the first part"
+    },
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "听懂了",
+      "definition": "understood"
+    },
+    {
+      "text": "但是",
+      "definition": "but"
+    },
+    {
+      "text": "最后一句",
+      "definition": "the last sentence"
+    },
+    {
+      "text": "没听清楚",
+      "definition": "did not catch clearly"
+    }
+  ],
+  "intermediate-011-doctor-delay": [
+    {
+      "text": "医生那边",
+      "definition": "doctor side"
+    },
+    {
+      "text": "有点延误",
+      "definition": "a bit delayed"
+    },
+    {
+      "text": "所以",
+      "definition": "so / therefore"
+    },
+    {
+      "text": "我们",
+      "definition": "we"
+    },
+    {
+      "text": "可能还要",
+      "definition": "we may need to wait a little longer"
+    },
+    {
+      "text": "再等一会儿",
+      "definition": "wait a little longer"
+    }
+  ],
+  "intermediate-012-medicine-timing": [
+    {
+      "text": "这个药",
+      "definition": "this medicine"
+    },
+    {
+      "text": "应该",
+      "definition": "should"
+    },
+    {
+      "text": "饭前吃",
+      "definition": "take before meals"
+    },
+    {
+      "text": "还是",
+      "definition": "or"
+    },
+    {
+      "text": "饭后吃",
+      "definition": "take after meals"
+    }
+  ],
+  "intermediate-013-upstairs-noise": [
+    {
+      "text": "楼上的邻居",
+      "definition": "upstairs neighbor"
+    },
+    {
+      "text": "最近",
+      "definition": "recently"
+    },
+    {
+      "text": "有点吵",
+      "definition": "a little noisy"
+    }
+  ],
+  "intermediate-014-fix-wifi": [
+    {
+      "text": "家里的无线网",
+      "definition": "home Wi-Fi"
+    },
+    {
+      "text": "不太稳定",
+      "definition": "not very stable"
+    },
+    {
+      "text": "所以我得",
+      "definition": "so I need to"
+    },
+    {
+      "text": "找人来修一下",
+      "definition": "ask someone to fix it"
+    }
+  ],
+  "intermediate-015-weekend-walk": [
+    {
+      "text": "如果",
+      "definition": "if"
+    },
+    {
+      "text": "这个周末",
+      "definition": "this weekend"
+    },
+    {
+      "text": "天气不错",
+      "definition": "weather is nice"
+    },
+    {
+      "text": "我想",
+      "definition": "I want to"
+    },
+    {
+      "text": "去",
+      "definition": "go to"
+    },
+    {
+      "text": "河边",
+      "definition": "by the river"
+    },
+    {
+      "text": "散散步",
+      "definition": "take a walk"
+    }
+  ],
+  "intermediate-016-after-work-tired": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "今晚",
+      "definition": "tonight"
+    },
+    {
+      "text": "本来",
+      "definition": "originally"
+    },
+    {
+      "text": "想出去",
+      "definition": "wanted to go out"
+    },
+    {
+      "text": "但是",
+      "definition": "but"
+    },
+    {
+      "text": "下班以后",
+      "definition": "after work"
+    },
+    {
+      "text": "太累了",
+      "definition": "too tired"
+    }
+  ],
+  "intermediate-017-subway-transfer": [
+    {
+      "text": "去那里",
+      "definition": "go there"
+    },
+    {
+      "text": "需要换乘",
+      "definition": "need to transfer"
+    },
+    {
+      "text": "另一条地铁线",
+      "definition": "another subway line"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "intermediate-018-delivery-arrives": [
+    {
+      "text": "外卖到了以后",
+      "definition": "when the delivery arrives"
+    },
+    {
+      "text": "你能",
+      "definition": "could you"
+    },
+    {
+      "text": "告诉我一声",
+      "definition": "let me know"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "intermediate-019-quieter-place": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "比较喜欢",
+      "definition": "prefer"
+    },
+    {
+      "text": "安静一点",
+      "definition": "quieter"
+    },
+    {
+      "text": "的地方",
+      "definition": "place that is"
+    },
+    {
+      "text": "这样",
+      "definition": "it is easier for us to talk"
+    },
+    {
+      "text": "我们",
+      "definition": "we"
+    },
+    {
+      "text": "聊天",
+      "definition": "talk/chat"
+    },
+    {
+      "text": "更方便",
+      "definition": "more convenient"
+    }
+  ],
+  "intermediate-020-finish-document": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "今天",
+      "definition": "today"
+    },
+    {
+      "text": "下班前",
+      "definition": "before getting off work"
+    },
+    {
+      "text": "得把",
+      "definition": "must take / must handle"
+    },
+    {
+      "text": "这份文件",
+      "definition": "this document"
+    },
+    {
+      "text": "做完",
+      "definition": "finish"
+    }
+  ],
+  "intermediate-021-exchange-money": [
+    {
+      "text": "附近有没有",
+      "definition": "is there nearby"
+    },
+    {
+      "text": "可以",
+      "definition": "can / may"
+    },
+    {
+      "text": "换钱",
+      "definition": "exchange money"
+    },
+    {
+      "text": "的",
+      "definition": "modifier particle"
+    },
+    {
+      "text": "银行",
+      "definition": "bank"
+    }
+  ],
+  "intermediate-022-larger-size": [
+    {
+      "text": "这个",
+      "definition": "this"
+    },
+    {
+      "text": "尺码",
+      "definition": "size"
+    },
+    {
+      "text": "有点紧",
+      "definition": "a little tight"
+    },
+    {
+      "text": "我可以",
+      "definition": "can I"
+    },
+    {
+      "text": "试",
+      "definition": "try"
+    },
+    {
+      "text": "大一号的",
+      "definition": "one size larger one"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "intermediate-023-call-back": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "现在",
+      "definition": "right now"
+    },
+    {
+      "text": "正在开会",
+      "definition": "in a meeting"
+    },
+    {
+      "text": "等一下",
+      "definition": "wait a moment / later"
+    },
+    {
+      "text": "再给你",
+      "definition": "then to you again"
+    },
+    {
+      "text": "回电话",
+      "definition": "call back"
+    }
+  ],
+  "intermediate-024-humidifier": [
+    {
+      "text": "房间里",
+      "definition": "in the room"
+    },
+    {
+      "text": "有点干",
+      "definition": "a bit dry"
+    },
+    {
+      "text": "可以",
+      "definition": "can / may"
+    },
+    {
+      "text": "把",
+      "definition": "object marker"
+    },
+    {
+      "text": "加湿器",
+      "definition": "humidifier"
+    },
+    {
+      "text": "打开",
+      "definition": "turn on"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "intermediate-025-stomach-uncomfortable": [
+    {
+      "text": "我从",
+      "definition": "I, from"
+    },
+    {
+      "text": "今天",
+      "definition": "today"
+    },
+    {
+      "text": "早上",
+      "definition": "morning"
+    },
+    {
+      "text": "开始",
+      "definition": "start / beginning"
+    },
+    {
+      "text": "胃",
+      "definition": "stomach"
+    },
+    {
+      "text": "就",
+      "definition": "then / just"
+    },
+    {
+      "text": "不太舒服",
+      "definition": "uncomfortable"
+    }
+  ],
+  "intermediate-026-buy-umbrella": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "忘了带",
+      "definition": "forgot to bring"
+    },
+    {
+      "text": "伞",
+      "definition": "umbrella"
+    },
+    {
+      "text": "所以可能得",
+      "definition": "so may need to"
+    },
+    {
+      "text": "在附近",
+      "definition": "nearby"
+    },
+    {
+      "text": "买一把",
+      "definition": "buy one"
+    }
+  ],
+  "intermediate-027-send-address": [
+    {
+      "text": "你能",
+      "definition": "could you"
+    },
+    {
+      "text": "再发我一次",
+      "definition": "send me again"
+    },
+    {
+      "text": "地址",
+      "definition": "address"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    },
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "找不到",
+      "definition": "cannot find"
+    },
+    {
+      "text": "之前的消息",
+      "definition": "old message"
+    },
+    {
+      "text": "了",
+      "definition": "completed/change marker"
+    }
+  ],
+  "intermediate-028-wait-entrance": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "快到了",
+      "definition": "almost there"
+    },
+    {
+      "text": "请在",
+      "definition": "please at / please wait at"
+    },
+    {
+      "text": "门口",
+      "definition": "entrance"
+    },
+    {
+      "text": "等我一下",
+      "definition": "wait for me"
+    }
+  ],
+  "intermediate-029-heavy-package": [
+    {
+      "text": "这个",
+      "definition": "this"
+    },
+    {
+      "text": "包裹",
+      "definition": "package"
+    },
+    {
+      "text": "有点重",
+      "definition": "a little heavy"
+    },
+    {
+      "text": "你",
+      "definition": "you"
+    },
+    {
+      "text": "能帮我",
+      "definition": "could help me"
+    },
+    {
+      "text": "搬上楼",
+      "definition": "carry upstairs"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "intermediate-030-charge-phone": [
+    {
+      "text": "我需要",
+      "definition": "I need"
+    },
+    {
+      "text": "给手机充电",
+      "definition": "charge phone"
+    },
+    {
+      "text": "附近有",
+      "definition": "nearby there is"
+    },
+    {
+      "text": "插座",
+      "definition": "outlet"
+    },
+    {
+      "text": "吗",
+      "definition": "question particle"
+    }
+  ],
+  "advanced-001-left-earlier": [
+    {
+      "text": "早知道",
+      "definition": "had I known"
+    },
+    {
+      "text": "地铁会这么挤",
+      "definition": "subway would be this crowded"
+    },
+    {
+      "text": "我就",
+      "definition": "then I"
+    },
+    {
+      "text": "早点出门",
+      "definition": "leave earlier"
+    },
+    {
+      "text": "了",
+      "definition": "completed/change marker"
+    }
+  ],
+  "advanced-002-not-worth-returning": [
+    {
+      "text": "这件衬衫",
+      "definition": "this shirt"
+    },
+    {
+      "text": "有一点瑕疵",
+      "definition": "has a small flaw"
+    },
+    {
+      "text": "不过",
+      "definition": "however / but"
+    },
+    {
+      "text": "不值得",
+      "definition": "not worth"
+    },
+    {
+      "text": "专门跑一趟",
+      "definition": "make a special trip"
+    },
+    {
+      "text": "去",
+      "definition": "go to"
+    },
+    {
+      "text": "退",
+      "definition": "return it"
+    }
+  ],
+  "advanced-003-reschedule-politely": [
+    {
+      "text": "不好意思",
+      "definition": "sorry"
+    },
+    {
+      "text": "麻烦你",
+      "definition": "to trouble you"
+    },
+    {
+      "text": "我们",
+      "definition": "we"
+    },
+    {
+      "text": "的",
+      "definition": "modifier particle"
+    },
+    {
+      "text": "约会",
+      "definition": "appointment"
+    },
+    {
+      "text": "能不能",
+      "definition": "could we move our appointment back by half an hour"
+    },
+    {
+      "text": "往后推",
+      "definition": "push back"
+    },
+    {
+      "text": "半个小时",
+      "definition": "half an hour"
+    }
+  ],
+  "advanced-004-spice-limit": [
+    {
+      "text": "我可以",
+      "definition": "can I"
+    },
+    {
+      "text": "吃一点辣",
+      "definition": "eat a little spice"
+    },
+    {
+      "text": "但",
+      "definition": "but"
+    },
+    {
+      "text": "请不要",
+      "definition": "please do not"
+    },
+    {
+      "text": "辣到",
+      "definition": "so spicy that"
+    },
+    {
+      "text": "吃不出",
+      "definition": "cannot taste"
+    },
+    {
+      "text": "别的味道",
+      "definition": "other flavors"
+    }
+  ],
+  "advanced-005-urgent-work": [
+    {
+      "text": "我正准备",
+      "definition": "I was just preparing to"
+    },
+    {
+      "text": "出门",
+      "definition": "go out"
+    },
+    {
+      "text": "的时候",
+      "definition": "when"
+    },
+    {
+      "text": "经理突然",
+      "definition": "the manager suddenly"
+    },
+    {
+      "text": "让我",
+      "definition": "my manager suddenly asked me to handle an urgent issue"
+    },
+    {
+      "text": "处理",
+      "definition": "handle"
+    },
+    {
+      "text": "一个",
+      "definition": "my manager suddenly asked me to handle an urgent issue"
+    },
+    {
+      "text": "急事",
+      "definition": "urgent issue"
+    }
+  ],
+  "advanced-006-miss-details": [
+    {
+      "text": "大意",
+      "definition": "main idea"
+    },
+    {
+      "text": "我能听懂",
+      "definition": "I can understand"
+    },
+    {
+      "text": "不过别人",
+      "definition": "but when other people"
+    },
+    {
+      "text": "说得快",
+      "definition": "speak quickly"
+    },
+    {
+      "text": "的时候",
+      "definition": "when"
+    },
+    {
+      "text": "我还是",
+      "definition": "I still"
+    },
+    {
+      "text": "会漏掉一些",
+      "definition": "people speak quickly"
+    },
+    {
+      "text": "细节",
+      "definition": "details"
+    }
+  ],
+  "advanced-007-convenient-apartment": [
+    {
+      "text": "这套",
+      "definition": "Although this apartment is not big"
+    },
+    {
+      "text": "公寓",
+      "definition": "apartment"
+    },
+    {
+      "text": "虽然不大",
+      "definition": "Although this apartment is not big"
+    },
+    {
+      "text": "但是",
+      "definition": "but"
+    },
+    {
+      "text": "周围很",
+      "definition": "the neighborhood is convenient"
+    },
+    {
+      "text": "方便",
+      "definition": "convenient"
+    },
+    {
+      "text": "住起来",
+      "definition": "living there"
+    },
+    {
+      "text": "也省心",
+      "definition": "living here is easy"
+    }
+  ],
+  "advanced-008-fever-hospital": [
+    {
+      "text": "如果",
+      "definition": "if"
+    },
+    {
+      "text": "今晚",
+      "definition": "tonight"
+    },
+    {
+      "text": "烧还",
+      "definition": "the fever still"
+    },
+    {
+      "text": "退不下来",
+      "definition": "does not go down"
+    },
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "明天",
+      "definition": "tomorrow"
+    },
+    {
+      "text": "可能得去",
+      "definition": "probably have to go"
+    },
+    {
+      "text": "医院",
+      "definition": "hospital"
+    }
+  ],
+  "advanced-009-weather-layer": [
+    {
+      "text": "最近",
+      "definition": "recently"
+    },
+    {
+      "text": "天气",
+      "definition": "weather"
+    },
+    {
+      "text": "变化挺大",
+      "definition": "changes a lot"
+    },
+    {
+      "text": "出门",
+      "definition": "go out"
+    },
+    {
+      "text": "记得",
+      "definition": "you go out"
+    },
+    {
+      "text": "多带一件衣服",
+      "definition": "bring an extra layer"
+    }
+  ],
+  "advanced-010-less-crowded": [
+    {
+      "text": "这家餐厅",
+      "definition": "this restaurant"
+    },
+    {
+      "text": "排队太久了",
+      "definition": "line is too long"
+    },
+    {
+      "text": "要不",
+      "definition": "how about / why not"
+    },
+    {
+      "text": "我们",
+      "definition": "we"
+    },
+    {
+      "text": "找一家",
+      "definition": "find a place"
+    },
+    {
+      "text": "没那么挤",
+      "definition": "less crowded"
+    },
+    {
+      "text": "的",
+      "definition": "modifier particle"
+    }
+  ],
+  "advanced-011-rush-hour": [
+    {
+      "text": "打车",
+      "definition": "take a taxi"
+    },
+    {
+      "text": "会快一点",
+      "definition": "would be a little faster"
+    },
+    {
+      "text": "不过",
+      "definition": "however / but"
+    },
+    {
+      "text": "高峰期",
+      "definition": "rush hour"
+    },
+    {
+      "text": "还是",
+      "definition": "or"
+    },
+    {
+      "text": "坐地铁",
+      "definition": "take the subway"
+    },
+    {
+      "text": "更稳妥",
+      "definition": "more reliable"
+    }
+  ],
+  "advanced-012-delivery-installation": [
+    {
+      "text": "如果",
+      "definition": "if"
+    },
+    {
+      "text": "这个",
+      "definition": "this"
+    },
+    {
+      "text": "价格",
+      "definition": "price"
+    },
+    {
+      "text": "包含配送和安装",
+      "definition": "includes delivery and installation"
+    },
+    {
+      "text": "那我觉得还",
+      "definition": "then I think it is acceptable"
+    },
+    {
+      "text": "可以接受",
+      "definition": "acceptable"
+    }
+  ],
+  "advanced-013-forgot-charger": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "今天",
+      "definition": "today"
+    },
+    {
+      "text": "早上",
+      "definition": "morning"
+    },
+    {
+      "text": "出门",
+      "definition": "go out"
+    },
+    {
+      "text": "太赶",
+      "definition": "too rushed"
+    },
+    {
+      "text": "结果",
+      "definition": "as a result"
+    },
+    {
+      "text": "忘了带",
+      "definition": "forgot to bring"
+    },
+    {
+      "text": "充电器",
+      "definition": "charger"
+    }
+  ],
+  "advanced-014-schedule-fit": [
+    {
+      "text": "我明白你",
+      "definition": "I understand your"
+    },
+    {
+      "text": "的意思",
+      "definition": "meaning / point"
+    },
+    {
+      "text": "不过我",
+      "definition": "but I"
+    },
+    {
+      "text": "不确定",
+      "definition": "not sure"
+    },
+    {
+      "text": "这个安排",
+      "definition": "this arrangement"
+    },
+    {
+      "text": "适不适合",
+      "definition": "whether it fits"
+    },
+    {
+      "text": "我们",
+      "definition": "we"
+    },
+    {
+      "text": "的时间",
+      "definition": "our time / schedule"
+    }
+  ],
+  "advanced-015-quiet-catch-up": [
+    {
+      "text": "我不是",
+      "definition": "I am not"
+    },
+    {
+      "text": "不喜欢",
+      "definition": "do not like"
+    },
+    {
+      "text": "热闹的",
+      "definition": "lively / bustling"
+    },
+    {
+      "text": "地方",
+      "definition": "place"
+    },
+    {
+      "text": "只是跟",
+      "definition": "just when with"
+    },
+    {
+      "text": "朋友聊天",
+      "definition": "chatting with friends"
+    },
+    {
+      "text": "时更喜欢",
+      "definition": "catching up with friends"
+    },
+    {
+      "text": "安静一点",
+      "definition": "quieter"
+    }
+  ],
+  "advanced-016-missed-call": [
+    {
+      "text": "刚才",
+      "definition": "earlier"
+    },
+    {
+      "text": "没接到",
+      "definition": "missed"
+    },
+    {
+      "text": "你的电话",
+      "definition": "your call"
+    },
+    {
+      "text": "是",
+      "definition": "is / are"
+    },
+    {
+      "text": "因为开会",
+      "definition": "my phone was on silent during the meeting"
+    },
+    {
+      "text": "时手机",
+      "definition": "my phone was on silent during the meeting"
+    },
+    {
+      "text": "调成静音",
+      "definition": "set to silent"
+    },
+    {
+      "text": "了",
+      "definition": "completed/change marker"
+    }
+  ],
+  "advanced-017-mall-exit": [
+    {
+      "text": "不好意思",
+      "definition": "sorry"
+    },
+    {
+      "text": "打扰一下",
+      "definition": "bother you briefly"
+    },
+    {
+      "text": "请问",
+      "definition": "excuse me / may I ask"
+    },
+    {
+      "text": "哪个出口",
+      "definition": "which exit"
+    },
+    {
+      "text": "离商场最近",
+      "definition": "closest to the mall"
+    }
+  ],
+  "advanced-018-sore-throat": [
+    {
+      "text": "我的嗓子",
+      "definition": "my throat"
+    },
+    {
+      "text": "已经",
+      "definition": "already"
+    },
+    {
+      "text": "疼了",
+      "definition": "has hurt / has been hurting"
+    },
+    {
+      "text": "好几天",
+      "definition": "several days"
+    },
+    {
+      "text": "吞咽",
+      "definition": "swallowing"
+    },
+    {
+      "text": "的时候",
+      "definition": "when"
+    },
+    {
+      "text": "更明显",
+      "definition": "more noticeable"
+    }
+  ],
+  "advanced-019-delivery-missing": [
+    {
+      "text": "外卖软件",
+      "definition": "delivery app"
+    },
+    {
+      "text": "显示",
+      "definition": "shows"
+    },
+    {
+      "text": "已经送到了",
+      "definition": "has arrived"
+    },
+    {
+      "text": "可是我这边",
+      "definition": "but on my side"
+    },
+    {
+      "text": "还",
+      "definition": "still / also"
+    },
+    {
+      "text": "没收到",
+      "definition": "have not received"
+    }
+  ],
+  "advanced-020-sit-indoors": [
+    {
+      "text": "既然后面",
+      "definition": "Since it might rain later"
+    },
+    {
+      "text": "可能会下雨",
+      "definition": "might rain"
+    },
+    {
+      "text": "我们",
+      "definition": "we"
+    },
+    {
+      "text": "还是",
+      "definition": "or"
+    },
+    {
+      "text": "坐室内",
+      "definition": "sit indoors"
+    },
+    {
+      "text": "吧",
+      "definition": "suggestion particle"
+    },
+    {
+      "text": "别坐外面",
+      "definition": "do not sit outside"
+    },
+    {
+      "text": "了",
+      "definition": "completed/change marker"
+    }
+  ],
+  "advanced-021-send-photo": [
+    {
+      "text": "如果",
+      "definition": "if"
+    },
+    {
+      "text": "太麻烦",
+      "definition": "too much trouble"
+    },
+    {
+      "text": "的话",
+      "definition": "if / in that case"
+    },
+    {
+      "text": "你",
+      "definition": "you"
+    },
+    {
+      "text": "先发张照片",
+      "definition": "send a photo first"
+    },
+    {
+      "text": "给我也",
+      "definition": "sending me a photo first is also fine"
+    },
+    {
+      "text": "可以",
+      "definition": "can / may"
+    }
+  ],
+  "advanced-022-air-conditioner": [
+    {
+      "text": "空调",
+      "definition": "air conditioner"
+    },
+    {
+      "text": "每次启动",
+      "definition": "whenever it starts"
+    },
+    {
+      "text": "都",
+      "definition": "all / always"
+    },
+    {
+      "text": "会响",
+      "definition": "makes noise"
+    },
+    {
+      "text": "所以",
+      "definition": "so / therefore"
+    },
+    {
+      "text": "我想",
+      "definition": "I want to"
+    },
+    {
+      "text": "找人来看一下",
+      "definition": "have someone look at it"
+    }
+  ],
+  "advanced-023-speaking-memory": [
+    {
+      "text": "这个词",
+      "definition": "this word"
+    },
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "看得懂",
+      "definition": "understand when reading"
+    },
+    {
+      "text": "可是",
+      "definition": "but"
+    },
+    {
+      "text": "一开口",
+      "definition": "when speaking"
+    },
+    {
+      "text": "就常常",
+      "definition": "then often"
+    },
+    {
+      "text": "想不起来",
+      "definition": "cannot remember"
+    }
+  ],
+  "advanced-024-last-train": [
+    {
+      "text": "如果",
+      "definition": "if"
+    },
+    {
+      "text": "赶不上",
+      "definition": "cannot catch"
+    },
+    {
+      "text": "末班车",
+      "definition": "last train"
+    },
+    {
+      "text": "我们就",
+      "definition": "then we"
+    },
+    {
+      "text": "只能",
+      "definition": "can only"
+    },
+    {
+      "text": "打车",
+      "definition": "take a taxi"
+    },
+    {
+      "text": "回家",
+      "definition": "go home"
+    },
+    {
+      "text": "了",
+      "definition": "completed/change marker"
+    }
+  ],
+  "advanced-025-last-minute-change": [
+    {
+      "text": "临时改时间",
+      "definition": "change the time at the last minute"
+    },
+    {
+      "text": "真的",
+      "definition": "really"
+    },
+    {
+      "text": "不好意思",
+      "definition": "sorry"
+    },
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "应该",
+      "definition": "should"
+    },
+    {
+      "text": "早点告诉你",
+      "definition": "told you earlier"
+    },
+    {
+      "text": "的",
+      "definition": "modifier particle"
+    }
+  ],
+  "advanced-026-sold-out": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "到店里",
+      "definition": "got to the store"
+    },
+    {
+      "text": "的时候",
+      "definition": "when"
+    },
+    {
+      "text": "想买的东西",
+      "definition": "the item I wanted to buy"
+    },
+    {
+      "text": "已经",
+      "definition": "already"
+    },
+    {
+      "text": "卖完了",
+      "definition": "sold out"
+    }
+  ],
+  "advanced-027-leave-early": [
+    {
+      "text": "我",
+      "definition": "I"
+    },
+    {
+      "text": "宁愿",
+      "definition": "would rather"
+    },
+    {
+      "text": "提前十分钟",
+      "definition": "ten minutes early"
+    },
+    {
+      "text": "出门",
+      "definition": "go out"
+    },
+    {
+      "text": "也不想",
+      "definition": "also do not want to"
+    },
+    {
+      "text": "最后",
+      "definition": "at the end"
+    },
+    {
+      "text": "赶得很急",
+      "definition": "rush"
+    }
+  ],
+  "advanced-028-compare-reviews": [
+    {
+      "text": "如果你",
+      "definition": "if you"
+    },
+    {
+      "text": "不确定",
+      "definition": "not sure"
+    },
+    {
+      "text": "选哪个",
+      "definition": "which one to choose"
+    },
+    {
+      "text": "我们",
+      "definition": "we"
+    },
+    {
+      "text": "可以",
+      "definition": "can / may"
+    },
+    {
+      "text": "先",
+      "definition": "first"
+    },
+    {
+      "text": "比较一下",
+      "definition": "compare"
+    },
+    {
+      "text": "评价",
+      "definition": "reviews"
+    }
+  ],
+  "advanced-029-late-reply": [
+    {
+      "text": "我本来想",
+      "definition": "I originally meant/wanted to"
+    },
+    {
+      "text": "早点回复你",
+      "definition": "reply to you earlier"
+    },
+    {
+      "text": "但是",
+      "definition": "but"
+    },
+    {
+      "text": "一忙就忘了",
+      "definition": "once I got busy, I forgot"
+    }
+  ],
+  "advanced-030-night-noise": [
+    {
+      "text": "这个地方",
+      "definition": "this place"
+    },
+    {
+      "text": "很方便",
+      "definition": "very convenient"
+    },
+    {
+      "text": "但是",
+      "definition": "but"
+    },
+    {
+      "text": "晚上的",
+      "definition": "at night / nighttime"
+    },
+    {
+      "text": "噪音已经",
+      "definition": "the noise at night is starting to affect my sleep"
+    },
+    {
+      "text": "开始",
+      "definition": "start / beginning"
+    },
+    {
+      "text": "影响我睡觉",
+      "definition": "affect my sleep"
+    },
+    {
+      "text": "了",
+      "definition": "completed/change marker"
+    }
+  ]
+}

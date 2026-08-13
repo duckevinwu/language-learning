@@ -2,10 +2,6 @@ import "server-only";
 
 import { AIProviderError } from "./errors";
 import { clampScore, getOpenAIClient, toProviderError } from "./openai";
-import {
-  exampleBreakdownSchema,
-  normalizeExampleBreakdown,
-} from "./example-breakdown";
 import type {
   AudioCorrectnessEvaluation,
   AudioEvaluationInput,
@@ -107,7 +103,6 @@ const mandarinAudioEvaluationTool = {
         "pronunciationScore",
         "toneScore",
         "pronunciationNeedsWork",
-        "exampleBreakdown",
         "pronunciationFeedback",
       ],
       properties: {
@@ -146,7 +141,6 @@ const mandarinAudioEvaluationTool = {
           description:
             "True only when there is a clear, material initial, final, rhythm, or tone issue that a learner should fix next. False for minor, uncertain, or accent-level variation.",
         },
-        exampleBreakdown: exampleBreakdownSchema,
         pronunciationFeedback: {
           type: "string",
           description:
@@ -195,9 +189,6 @@ function buildAudioEvaluationPrompt(challenge: Challenge) {
         "If an initial/final/rhythm issue makes a syllable sound like a different Mandarin syllable, cap pronunciationScore at 79. If this happens repeatedly, cap pronunciationScore at 69.",
         "overallScore should reflect practical correctness of the spoken answer. It must be no more than 10 points above meaningScore unless meaningScore is at least 85.",
         "Set isCorrect true only when the answer would be accepted as correct in a speaking practice exercise.",
-        "exampleBreakdown should split exampleMandarinAnswer into 2-8 contiguous beginner-useful Mandarin chunks.",
-        "Each exampleBreakdown item must copy its text exactly from exampleMandarinAnswer and define that chunk in concise English.",
-        "Do not include pinyin in exampleBreakdown; the app adds pinyin automatically.",
         "Audit the transcript for tones, initials, finals, and rhythm; do this even when the answer meaning is correct and easy to understand.",
         "Set pronunciationNeedsWork true only for a clear, material issue: a wrong tone category, missing/flattened tone contour, unclear initial/final, or rhythm issue that could mislead a listener or is worth fixing next.",
         "Set pronunciationNeedsWork false for slight accent, recording uncertainty, one-off variation, or issues too minor to be the learner\'s next focus. In that case, return an empty pronunciationFeedback string.",
@@ -235,14 +226,6 @@ function parseAudioEvaluationReport(
     );
   }
 
-  const exampleBreakdown = normalizeExampleBreakdown(parsed.exampleBreakdown);
-
-  if (!exampleBreakdown) {
-    throw new AIProviderError(
-      "The audio evaluator returned incomplete example breakdown. Try again.",
-      502,
-    );
-  }
 
   const pronunciationNeedsWork = parsed.pronunciationNeedsWork;
   const pronunciationFeedback = parsed.pronunciationFeedback?.trim();
@@ -273,7 +256,6 @@ function parseAudioEvaluationReport(
     pronunciationScore: clampScore(parsed.pronunciationScore),
     toneScore: clampScore(parsed.toneScore),
     pronunciationNeedsWork,
-    exampleBreakdown,
     ...(pronunciationFeedback ? { pronunciationFeedback } : {}),
     pronunciationProvider: GPT_AUDIO_EVALUATION_MODEL,
   };
@@ -331,7 +313,6 @@ function isAudioCorrectnessEvaluation(
     typeof report.pronunciationNeedsWork === "boolean" &&
     (report.pronunciationFeedback === undefined ||
       typeof report.pronunciationFeedback === "string") &&
-    normalizeExampleBreakdown(report.exampleBreakdown) !== null &&
     scoreFields.every((field) => Number.isFinite(report[field]))
   );
 }

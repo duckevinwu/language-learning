@@ -1,4 +1,5 @@
 import { AIProviderError } from "@/lib/ai/errors";
+import { getStaticExampleBreakdown } from "@/lib/ai/example-breakdown-store";
 import { calculateDeterministicScore } from "@/lib/ai/openai";
 import {
   getAudioMandarinEvaluator,
@@ -11,7 +12,9 @@ import type {
   AudioInput,
   Challenge,
   CorrectnessEvaluation,
+  EvaluationDebug,
   EvaluationMode,
+  EvaluationTiming,
   ExampleSentencePart,
   PronunciationAssessmentResult,
 } from "@/lib/ai/types";
@@ -19,7 +22,11 @@ import { getChallengeById } from "@/lib/challenge";
 import { romanizeMandarin, romanizeMandarinInContext } from "@/lib/mandarin/pinyin";
 
 export async function POST(request: Request) {
-  const formData = await request.formData();
+  const requestStartedAt = performance.now();
+  const timings: EvaluationTiming[] = [];
+  const formData = await measureAsync(timings, "server:parseFormData", () =>
+    request.formData(),
+  );
   const audio = formData.get("audio");
   const challengeId = formData.get("challengeId");
   const evaluationMode = parseEvaluationMode(formData.get("evaluationMode"));
@@ -48,11 +55,20 @@ export async function POST(request: Request) {
   }
 
   const audioInput: AudioInput = {
-    data: await audio.arrayBuffer(),
+    data: await measureAsync(timings, "server:readAudioFile", () =>
+      audio.arrayBuffer(),
+    ),
     mimeType: audio.type || "application/octet-stream",
     filename: audio.name || "recording.webm",
     size: audio.size,
   };
+  const exampleBreakdown = measureSync(
+    timings,
+    "server:exampleBreakdownLookup",
+    () =>
+      getStaticExampleBreakdown(challenge.id) ??
+      buildFallbackExampleBreakdown(challenge.exampleMandarinAnswer),
+  );
 
   try {
     if (evaluationMode === "gpt-audio") {
@@ -64,68 +80,105 @@ export async function POST(request: Request) {
       }
 
       const evaluator = getAudioMandarinEvaluator();
-      const audioCorrectness = await evaluator.evaluate({
-        audio: audioInput,
-        challenge,
-      });
-
-      return Response.json(
-        buildEvaluationReport(
-          audioCorrectness.transcript,
-          audioCorrectness,
-          challenge,
-          evaluationMode,
-        ),
+      const audioCorrectness = await measureAsync(
+        timings,
+        "server:gptAudioEvaluation",
+        () =>
+          evaluator.evaluate({
+            audio: audioInput,
+            challenge,
+          }),
       );
+      const report = {
+        ...measureSync(timings, "server:buildReport", () =>
+          buildEvaluationReport(
+            audioCorrectness.transcript,
+            audioCorrectness,
+            challenge,
+            evaluationMode,
+            exampleBreakdown,
+          ),
+        ),
+        debugTimings: buildDebugTimings(timings, requestStartedAt),
+      };
+      logEvaluationTimings(challengeId, evaluationMode, timings);
+
+      return Response.json(report);
     }
 
     const transcriber = getSpeechTranscriber();
-    const transcription = await transcriber.transcribe(audioInput);
+    const transcription = await measureAsync(
+      timings,
+      "server:transcription",
+      () => transcriber.transcribe(audioInput),
+    );
 
     if (!isMandarinTranscript(transcription.transcript)) {
-      return Response.json(
-        buildEvaluationReport(
-          transcription.transcript,
-          {
-            isCorrect: false,
-            overallScore: 0,
-            meaningScore: 0,
-            grammarScore: 0,
-            exampleBreakdown: buildFallbackExampleBreakdown(
-              challenge.exampleMandarinAnswer,
-            ),
-          },
-          challenge,
-          evaluationMode,
+      const report = {
+        ...measureSync(timings, "server:buildReport", () =>
+          buildEvaluationReport(
+            transcription.transcript,
+            {
+              isCorrect: false,
+              overallScore: 0,
+              meaningScore: 0,
+              grammarScore: 0,
+            },
+            challenge,
+            evaluationMode,
+            exampleBreakdown,
+          ),
         ),
-      );
+        debugTimings: buildDebugTimings(timings, requestStartedAt),
+      };
+      logEvaluationTimings(challengeId, evaluationMode, timings);
+
+      return Response.json(report);
     }
 
     const evaluator = getMandarinEvaluator();
     const pronunciationAssessor = getPronunciationAssessor();
+    const parallelStartedAt = performance.now();
     const [correctness, pronunciation] = await Promise.all([
-      evaluator.evaluate({
-        userTranscript: transcription.transcript,
-        exampleMandarinAnswer: challenge.exampleMandarinAnswer,
-        englishPrompt: challenge.englishPrompt,
-      }),
-      pronunciationAssessor.assess({
-        audio: audioInput,
-        referenceText: transcription.transcript,
-      }),
-    ]);
-
-    return Response.json(
-      buildEvaluationReport(
-        transcription.transcript,
-        correctness,
-        challenge,
-        evaluationMode,
-        pronunciation,
+      measureAsync(timings, "server:correctnessEvaluation", () =>
+        evaluator.evaluate({
+          userTranscript: transcription.transcript,
+          englishPrompt: challenge.englishPrompt,
+        }),
       ),
-    );
+      measureAsync(timings, "server:pronunciationAssessment", () =>
+        pronunciationAssessor.assess({
+          audio: audioInput,
+          referenceText: transcription.transcript,
+        }),
+      ),
+    ]);
+    recordTiming(timings, "server:parallelEvaluation", parallelStartedAt);
+
+    const report = {
+      ...measureSync(timings, "server:buildReport", () =>
+        buildEvaluationReport(
+          transcription.transcript,
+          correctness,
+          challenge,
+          evaluationMode,
+          exampleBreakdown,
+          pronunciation,
+        ),
+      ),
+      debugTimings: buildDebugTimings(timings, requestStartedAt),
+    };
+    logEvaluationTimings(challengeId, evaluationMode, timings);
+
+    return Response.json(report);
   } catch (error) {
+    recordTiming(timings, "server:totalBeforeError", requestStartedAt);
     console.error("/api/evaluate failed", error);
+    logEvaluationTimings(
+      typeof challengeId === "string" ? challengeId : "unknown",
+      evaluationMode,
+      timings,
+    );
 
     if (error instanceof AIProviderError) {
       return Response.json({ error: error.message }, { status: error.status });
@@ -136,6 +189,76 @@ export async function POST(request: Request) {
       { status: 502 },
     );
   }
+}
+
+async function measureAsync<T>(
+  timings: EvaluationTiming[],
+  label: string,
+  task: () => Promise<T>,
+): Promise<T> {
+  const startedAt = performance.now();
+
+  try {
+    return await task();
+  } finally {
+    recordTiming(timings, label, startedAt);
+  }
+}
+
+function measureSync<T>(
+  timings: EvaluationTiming[],
+  label: string,
+  task: () => T,
+): T {
+  const startedAt = performance.now();
+
+  try {
+    return task();
+  } finally {
+    recordTiming(timings, label, startedAt);
+  }
+}
+
+function recordTiming(
+  timings: EvaluationTiming[],
+  label: string,
+  startedAt: number,
+) {
+  timings.push({
+    label,
+    durationMs: roundDuration(performance.now() - startedAt),
+  });
+}
+
+function buildDebugTimings(
+  timings: EvaluationTiming[],
+  requestStartedAt: number,
+): EvaluationDebug {
+  return {
+    server: [
+      ...timings,
+      {
+        label: "server:total",
+        durationMs: roundDuration(performance.now() - requestStartedAt),
+      },
+    ],
+  };
+}
+
+function logEvaluationTimings(
+  challengeId: string,
+  evaluationMode: EvaluationMode,
+  timings: EvaluationTiming[],
+) {
+  console.info("/api/evaluate timings", {
+    challengeId,
+    evaluationMode,
+    timings,
+  });
+}
+
+function roundDuration(durationMs: number) {
+  return Math.round(durationMs * 10) / 10;
 }
 
 function parseEvaluationMode(value: FormDataEntryValue | null): EvaluationMode {
@@ -165,6 +288,7 @@ function buildEvaluationReport(
   correctness: CorrectnessEvaluation | AudioCorrectnessEvaluation,
   challenge: Challenge,
   evaluationMode: EvaluationMode,
+  exampleBreakdown: ExampleSentencePart[],
   pronunciation?: PronunciationAssessmentResult,
 ) {
   const pronunciationFields = readPronunciationFields(
@@ -182,7 +306,7 @@ function buildEvaluationReport(
     exampleMandarinAnswer: challenge.exampleMandarinAnswer,
     exampleMandarinPinyin: romanizeMandarin(challenge.exampleMandarinAnswer),
     exampleBreakdown: enrichExampleBreakdown(
-      correctness.exampleBreakdown,
+      exampleBreakdown,
       challenge.exampleMandarinAnswer,
     ),
     ...pronunciationFields,

@@ -32,7 +32,6 @@ export type TranscriptionResult = {
 
 export type EvaluationInput = {
   userTranscript: string;
-  exampleMandarinAnswer: string;
   englishPrompt?: string;
 };
 
@@ -48,7 +47,7 @@ export type CorrectnessEvaluation = {
   meaningScore: number;
   grammarScore: number;
   naturalnessScore?: number;
-  exampleBreakdown: ExampleSentencePart[];
+  exampleBreakdown?: ExampleSentencePart[];
 };
 
 export type AudioEvaluationInput = {
@@ -90,11 +89,26 @@ export type PronunciationAssessmentResult = {
   pronunciationIssues?: PronunciationIssue[];
 };
 
+export type EvaluationTiming = {
+  label: string;
+  durationMs: number;
+};
+
+export type EvaluationDebug = {
+  client?: EvaluationTiming[];
+  server?: EvaluationTiming[];
+  audioBytes?: {
+    original: number;
+    submitted: number;
+  };
+};
+
 export type EvaluationReport = CorrectnessEvaluation & {
   transcript: string;
   transcriptPinyin: string;
   exampleMandarinAnswer: string;
   exampleMandarinPinyin: string;
+  exampleBreakdown: ExampleSentencePart[];
   evaluationMode?: EvaluationMode;
   pronunciationScore?: number;
   toneScore?: number;
@@ -102,6 +116,7 @@ export type EvaluationReport = CorrectnessEvaluation & {
   pronunciationFeedback?: string;
   pronunciationProvider?: string;
   pronunciationIssues?: PronunciationIssue[];
+  debugTimings?: EvaluationDebug;
 };
 
 export interface SpeechTranscriber {

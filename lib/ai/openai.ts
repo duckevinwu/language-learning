@@ -2,10 +2,6 @@ import "server-only";
 
 import OpenAI, { APIError, toFile } from "openai";
 import { AIProviderError } from "./errors";
-import {
-  exampleBreakdownSchema,
-  normalizeExampleBreakdown,
-} from "./example-breakdown";
 import type {
   AudioInput,
   CorrectnessEvaluation,
@@ -91,7 +87,7 @@ export class OpenAIMandarinEvaluator implements MandarinEvaluator {
         model: EVALUATION_MODEL,
         input: buildEvaluationPrompt(input),
         instructions:
-          "You are a strict but helpful Mandarin coach. Score the user's transcript, then return a structured breakdown of the example answer. Return JSON only.",
+          "You are a strict but helpful Mandarin coach. Score the user's transcript against the English prompt. Return JSON only.",
         text: {
           format: {
             type: "json_schema",
@@ -145,19 +141,15 @@ function buildEvaluationPrompt(input: EvaluationInput) {
     {
       task: "Evaluate a Mandarin spoken-answer transcript for correctness.",
       userTranscript: input.userTranscript,
-      exampleMandarinAnswer: input.exampleMandarinAnswer,
       englishPrompt: input.englishPrompt,
       gradingRules: [
-        "The exampleMandarinAnswer is only one correct example, not the only valid answer.",
+        "The user can express the target meaning with wording that differs from any example answer.",
         "Award full marks if userTranscript has the same meaning and is grammatically correct Mandarin, even when the wording differs from the example.",
         "Score meaningScore and grammarScore as 0-100 integers.",
         "meaningScore measures whether the user expressed the target meaning.",
         "grammarScore measures Mandarin grammar and word order.",
         "Set isCorrect true when the answer would be accepted as correct in a speaking practice exercise.",
         "Do not penalize missing punctuation or minor transcription punctuation differences.",
-        "exampleBreakdown should split exampleMandarinAnswer into 2-8 contiguous beginner-useful Mandarin chunks.",
-        "Each exampleBreakdown item must copy its text exactly from exampleMandarinAnswer and define that chunk in concise English.",
-        "Do not include pinyin in exampleBreakdown; the app adds pinyin automatically.",
       ],
     },
     null,
@@ -168,17 +160,11 @@ function buildEvaluationPrompt(input: EvaluationInput) {
 const evaluationReportSchema = {
   type: "object",
   additionalProperties: false,
-  required: [
-    "isCorrect",
-    "meaningScore",
-    "grammarScore",
-    "exampleBreakdown",
-  ],
+  required: ["isCorrect", "meaningScore", "grammarScore"],
   properties: {
     isCorrect: { type: "boolean" },
     meaningScore: { type: "integer" },
     grammarScore: { type: "integer" },
-    exampleBreakdown: exampleBreakdownSchema,
   },
 } as const;
 
@@ -201,15 +187,6 @@ function parseEvaluationReport(outputText: string): CorrectnessEvaluation {
     );
   }
 
-  const exampleBreakdown = normalizeExampleBreakdown(parsed.exampleBreakdown);
-
-  if (!exampleBreakdown) {
-    throw new AIProviderError(
-      "The evaluator returned incomplete example breakdown. Try again.",
-      502,
-    );
-  }
-
   return {
     isCorrect: parsed.isCorrect,
     overallScore: calculateDeterministicScore([
@@ -218,7 +195,6 @@ function parseEvaluationReport(outputText: string): CorrectnessEvaluation {
     ]),
     meaningScore: clampScore(parsed.meaningScore),
     grammarScore: clampScore(parsed.grammarScore),
-    exampleBreakdown,
   };
 }
 
@@ -234,7 +210,6 @@ function isCorrectnessEvaluation(
 
   return (
     typeof report.isCorrect === "boolean" &&
-    normalizeExampleBreakdown(report.exampleBreakdown) !== null &&
     scoreFields.every((field) => Number.isFinite(report[field]))
   );
 }
