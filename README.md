@@ -13,6 +13,20 @@ AZURE_SPEECH_REGION=...
 
 `gpt-audio` mode still uses OpenAI audio evaluation directly.
 
+Optional local API access controls:
+
+```bash
+ALLOWED_API_ORIGINS=http://localhost:5173,http://localhost:3001
+MAX_AUDIO_UPLOAD_BYTES=5000000
+INCLUDE_DEBUG_TIMINGS=false
+```
+
+`ALLOWED_API_ORIGINS` is a comma-separated exact-origin allowlist for browser clients calling the API from another local app. When unset, same-origin app requests and no-origin clients such as curl, native apps, and server-to-server calls still work, but cross-origin browser requests are rejected. CORS is browser access control only; it is not production-grade abuse prevention.
+
+`MAX_AUDIO_UPLOAD_BYTES` limits uploaded audio size and defaults to `5000000`. `INCLUDE_DEBUG_TIMINGS=true` includes server timing details in production responses; timings are included automatically outside production.
+
+Before deployment, rotate provider keys and configure secrets through Vercel or provider environment variables. Do not commit deployed credentials in local env files.
+
 ## Getting Started
 
 First, run the development server:

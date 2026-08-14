@@ -126,7 +126,6 @@ export class AzurePronunciationAssessor implements PronunciationAssessor {
         502,
       );
     } finally {
-      console.info("Azure pronunciation timings", { timings });
       recognizer.close();
       audioConfig.close();
     }

@@ -1,3 +1,8 @@
+import {
+  jsonWithCors,
+  preflightResponse,
+  rejectDisallowedOrigin,
+} from "@/lib/api/cors";
 import { AIProviderError } from "@/lib/ai/errors";
 import { getStaticExampleBreakdown } from "@/lib/ai/example-breakdown-store";
 import { calculateDeterministicScore } from "@/lib/ai/openai";
@@ -22,17 +27,50 @@ import { getChallengeById } from "@/lib/challenge";
 import { romanizeMandarin, romanizeMandarinInContext } from "@/lib/mandarin/pinyin";
 
 export async function POST(request: Request) {
+  const forbidden = rejectDisallowedOrigin(request);
+
+  if (forbidden) {
+    return forbidden;
+  }
+
   const requestStartedAt = performance.now();
   const timings: EvaluationTiming[] = [];
-  const formData = await measureAsync(timings, "server:parseFormData", () =>
-    request.formData(),
-  );
+  const maxAudioUploadBytes = getMaxAudioUploadBytes();
+  const contentLength = readContentLength(request);
+
+  if (contentLength !== null && contentLength > maxAudioUploadBytes) {
+    return jsonWithCors(
+      request,
+      {
+        error: `Audio uploads must be ${maxAudioUploadBytes} bytes or smaller.`,
+      },
+      { status: 413 },
+    );
+  }
+
+  let formData: FormData;
+
+  try {
+    formData = await measureAsync(timings, "server:parseFormData", () =>
+      request.formData(),
+    );
+  } catch (error) {
+    console.error("/api/evaluate form data parsing failed", error);
+
+    return jsonWithCors(
+      request,
+      { error: "The request form data could not be parsed." },
+      { status: 400 },
+    );
+  }
+
   const audio = formData.get("audio");
   const challengeId = formData.get("challengeId");
   const evaluationMode = parseEvaluationMode(formData.get("evaluationMode"));
 
   if (typeof challengeId !== "string" || challengeId.trim().length === 0) {
-    return Response.json(
+    return jsonWithCors(
+      request,
       { error: "A valid challengeId is required." },
       { status: 400 },
     );
@@ -41,15 +79,35 @@ export async function POST(request: Request) {
   const challenge = getChallengeById(challengeId);
 
   if (!challenge) {
-    return Response.json(
+    return jsonWithCors(
+      request,
       { error: "The requested challenge could not be found." },
       { status: 400 },
     );
   }
 
   if (!(audio instanceof File) || audio.size === 0) {
-    return Response.json(
+    return jsonWithCors(
+      request,
       { error: "A non-empty audio file is required." },
+      { status: 400 },
+    );
+  }
+
+  if (audio.size > maxAudioUploadBytes) {
+    return jsonWithCors(
+      request,
+      {
+        error: `Audio uploads must be ${maxAudioUploadBytes} bytes or smaller.`,
+      },
+      { status: 413 },
+    );
+  }
+
+  if (!isAllowedAudioUpload(audio)) {
+    return jsonWithCors(
+      request,
+      { error: "Audio must be a WAV, WAVE, or WebM recording." },
       { status: 400 },
     );
   }
@@ -73,7 +131,8 @@ export async function POST(request: Request) {
   try {
     if (evaluationMode === "gpt-audio") {
       if (!isWavAudio(audioInput)) {
-        return Response.json(
+        return jsonWithCors(
+          request,
           { error: "GPT audio evaluation requires a WAV recording." },
           { status: 400 },
         );
@@ -99,11 +158,9 @@ export async function POST(request: Request) {
             exampleBreakdown,
           ),
         ),
-        debugTimings: buildDebugTimings(timings, requestStartedAt),
+        ...buildDebugTimingsField(timings, requestStartedAt),
       };
-      logEvaluationTimings(challengeId, evaluationMode, timings);
-
-      return Response.json(report);
+      return jsonWithCors(request, report);
     }
 
     const transcriber = getSpeechTranscriber();
@@ -129,11 +186,9 @@ export async function POST(request: Request) {
             exampleBreakdown,
           ),
         ),
-        debugTimings: buildDebugTimings(timings, requestStartedAt),
+        ...buildDebugTimingsField(timings, requestStartedAt),
       };
-      logEvaluationTimings(challengeId, evaluationMode, timings);
-
-      return Response.json(report);
+      return jsonWithCors(request, report);
     }
 
     const evaluator = getMandarinEvaluator();
@@ -166,29 +221,26 @@ export async function POST(request: Request) {
           pronunciation,
         ),
       ),
-      debugTimings: buildDebugTimings(timings, requestStartedAt),
+      ...buildDebugTimingsField(timings, requestStartedAt),
     };
-    logEvaluationTimings(challengeId, evaluationMode, timings);
-
-    return Response.json(report);
+    return jsonWithCors(request, report);
   } catch (error) {
     recordTiming(timings, "server:totalBeforeError", requestStartedAt);
     console.error("/api/evaluate failed", error);
-    logEvaluationTimings(
-      typeof challengeId === "string" ? challengeId : "unknown",
-      evaluationMode,
-      timings,
-    );
-
     if (error instanceof AIProviderError) {
-      return Response.json({ error: error.message }, { status: error.status });
+      return buildProviderErrorResponse(request, error);
     }
 
-    return Response.json(
+    return jsonWithCors(
+      request,
       { error: "The upstream AI service failed. Try again in a moment." },
       { status: 502 },
     );
   }
+}
+
+export async function OPTIONS(request: Request) {
+  return preflightResponse(request, ["POST", "OPTIONS"]);
 }
 
 async function measureAsync<T>(
@@ -230,6 +282,19 @@ function recordTiming(
   });
 }
 
+function buildDebugTimingsField(
+  timings: EvaluationTiming[],
+  requestStartedAt: number,
+): { debugTimings?: EvaluationDebug } {
+  if (!shouldIncludeDebugTimings()) {
+    return {};
+  }
+
+  return {
+    debugTimings: buildDebugTimings(timings, requestStartedAt),
+  };
+}
+
 function buildDebugTimings(
   timings: EvaluationTiming[],
   requestStartedAt: number,
@@ -245,16 +310,83 @@ function buildDebugTimings(
   };
 }
 
-function logEvaluationTimings(
-  challengeId: string,
-  evaluationMode: EvaluationMode,
-  timings: EvaluationTiming[],
-) {
-  console.info("/api/evaluate timings", {
-    challengeId,
-    evaluationMode,
-    timings,
-  });
+function getMaxAudioUploadBytes() {
+  const configuredValue = Number(process.env.MAX_AUDIO_UPLOAD_BYTES);
+
+  return Number.isFinite(configuredValue) && configuredValue > 0
+    ? configuredValue
+    : 5000000;
+}
+
+function readContentLength(request: Request) {
+  const value = request.headers.get("content-length");
+
+  if (!value) {
+    return null;
+  }
+
+  const contentLength = Number(value);
+
+  return Number.isFinite(contentLength) && contentLength >= 0
+    ? contentLength
+    : null;
+}
+
+function isAllowedAudioUpload(audio: File) {
+  const filename = audio.name.toLowerCase();
+  const hasValidExtension =
+    filename.endsWith(".wav") ||
+    filename.endsWith(".wave") ||
+    filename.endsWith(".webm");
+  const mimeType = audio.type.toLowerCase();
+
+  if (mimeType === "application/octet-stream") {
+    return hasValidExtension;
+  }
+
+  return (
+    mimeType === "audio/wav" ||
+    mimeType === "audio/wave" ||
+    mimeType === "audio/webm"
+  );
+}
+
+function shouldIncludeDebugTimings() {
+  return (
+    process.env.NODE_ENV !== "production" ||
+    process.env.INCLUDE_DEBUG_TIMINGS === "true"
+  );
+}
+
+function buildProviderErrorResponse(request: Request, error: AIProviderError) {
+  if (process.env.NODE_ENV === "production" && isUpstreamProviderError(error)) {
+    return jsonWithCors(
+      request,
+      { error: "The upstream AI service failed. Try again in a moment." },
+      { status: normalizeUpstreamErrorStatus(error.status) },
+    );
+  }
+
+  return jsonWithCors(
+    request,
+    { error: error.message },
+    { status: error.status },
+  );
+}
+
+function isUpstreamProviderError(error: AIProviderError) {
+  return (
+    error.status >= 500 ||
+    error.status === 401 ||
+    error.status === 403 ||
+    error.status === 429 ||
+    error.message.startsWith("OpenAI ") ||
+    error.message.startsWith("Azure ")
+  );
+}
+
+function normalizeUpstreamErrorStatus(status: number) {
+  return status >= 400 && status < 600 ? status : 502;
 }
 
 function roundDuration(durationMs: number) {
