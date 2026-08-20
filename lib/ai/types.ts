@@ -9,7 +9,9 @@ export type Challenge = {
   notes?: string;
 };
 
-export type PublicChallenge = Omit<Challenge, "exampleMandarinAnswer">;
+export type PublicChallenge = Omit<Challenge, "exampleMandarinAnswer"> & {
+  exampleAnswer: string;
+};
 
 export type PublicDailyChallenge = {
   id: string;

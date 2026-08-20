@@ -237,6 +237,7 @@ export function toPublicChallenge(challenge: Challenge): PublicChallenge {
     englishPrompt: challenge.englishPrompt,
     category: challenge.category,
     difficulty: challenge.difficulty,
+    exampleAnswer: challenge.exampleMandarinAnswer,
     ...(challenge.notes ? { notes: challenge.notes } : {}),
   };
 }
