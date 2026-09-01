@@ -25,7 +25,7 @@ type PracticeRecorderProps = {
   dailyChallenge: PublicDailyChallenge;
 };
 
-type DayEndReason = "completed" | "stopped";
+type DayEndReason = "completed";
 
 export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
   const [currentDay, setCurrentDay] = useState(dailyChallenge);
@@ -65,7 +65,7 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
   const attemptedReports = stepReports.filter(
     (stepReport): stepReport is EvaluationReport => Boolean(stepReport),
   );
-  const completedCount = stepReports.filter(
+  const passingCount = stepReports.filter(
     (stepReport) =>
       Boolean(stepReport && stepReport.overallScore >= PASSING_SCORE),
   ).length;
@@ -407,8 +407,8 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
 
     discardPracticeState();
 
-    if (!scorePassed || isLastChallenge) {
-      setDayEndReason(scorePassed ? "completed" : "stopped");
+    if (isLastChallenge) {
+      setDayEndReason("completed");
       return;
     }
 
@@ -423,11 +423,10 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
     return (
       <DayCompleteView
         attemptedReports={attemptedReports}
-        completedCount={completedCount}
+        passingCount={passingCount}
         error={error}
         isLoadingChallenge={isLoadingChallenge}
         onGenerateDay={loadNewDay}
-        reason={dayEndReason}
       />
     );
   }
@@ -531,11 +530,7 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
               onClick={moveToNextChallenge}
               type="button"
             >
-              {scorePassed
-                ? isLastChallenge
-                  ? "Finish day"
-                  : "Next challenge"
-                : "End day"}
+              {isLastChallenge ? "Finish day" : "Next challenge"}
             </button>
           )}
 
@@ -553,7 +548,7 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
 
         {report && !scorePassed && (
           <p className="max-w-xl text-sm leading-6 text-[#9f4f3a]">
-            Score at least {PASSING_SCORE} to unlock the next level. This run can end here after you review the feedback.
+            This score will be included in your end-of-day results. Review the feedback, then continue when you are ready.
           </p>
         )}
 
@@ -591,7 +586,7 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
               Feedback
             </p>
             <p className="text-lg leading-8">
-              Complete beginner, intermediate, and advanced prompts in order. Score at least {PASSING_SCORE} to move on.
+              Complete beginner, intermediate, and advanced prompts in order. Your end-of-day results will show which scores met the {PASSING_SCORE} target.
             </p>
           </div>
         )}
@@ -628,11 +623,11 @@ function ChallengeProgress({
                 {label}
               </p>
               <p className="mt-2 text-lg font-semibold text-[#1f1b16]">
-                {report ? `${report.overallScore}/100` : isCurrent ? "Current" : "Locked"}
+                {report ? `${report.overallScore}/100` : isCurrent ? "Current" : "Up next"}
               </p>
               {report && (
                 <p className="mt-1 text-xs font-medium text-[#756b5d]">
-                  {passed ? "Passed" : "Stopped"}
+                  {passed ? "Passed" : "Needs work"}
                 </p>
               )}
             </div>
@@ -645,18 +640,16 @@ function ChallengeProgress({
 
 function DayCompleteView({
   attemptedReports,
-  completedCount,
+  passingCount,
   error,
   isLoadingChallenge,
   onGenerateDay,
-  reason,
 }: {
   attemptedReports: EvaluationReport[];
-  completedCount: number;
+  passingCount: number;
   error: string | null;
   isLoadingChallenge: boolean;
   onGenerateDay: () => void;
-  reason: DayEndReason;
 }) {
   const averageScore = attemptedReports.length
     ? Math.round(
@@ -673,9 +666,7 @@ function DayCompleteView({
             Daily Challenge Complete
           </p>
           <h2 className="max-w-2xl text-4xl font-semibold leading-tight sm:text-5xl">
-            {reason === "completed"
-              ? "Congratulations, you completed today's challenge."
-              : `You made it through ${completedCount} of ${CHALLENGE_COUNT} challenges.`}
+            You completed today's challenge.
           </h2>
         </div>
 
@@ -685,9 +676,9 @@ function DayCompleteView({
             <p className="mt-2 text-3xl font-semibold">{averageScore}/100</p>
           </div>
           <div className="border border-[#ded7ca] bg-[#fbf8f1] p-5">
-            <p className="text-sm text-[#756b5d]">Completed</p>
+            <p className="text-sm text-[#756b5d]">Met target</p>
             <p className="mt-2 text-3xl font-semibold">
-              {completedCount}/{CHALLENGE_COUNT}
+              {passingCount}/{CHALLENGE_COUNT}
             </p>
           </div>
         </div>
