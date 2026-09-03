@@ -144,8 +144,9 @@ function buildEvaluationPrompt(input: EvaluationInput) {
       englishPrompt: input.englishPrompt,
       gradingRules: [
         "The user can express the target meaning with wording that differs from any example answer.",
+        "This is a Mandarin speaking exercise, not a translation exercise. Do not award meaning credit for English words or sentences merely because they translate the prompt. An entirely English answer must receive meaningScore 0 and isCorrect false. Count every English word in englishWordCount; do not count pinyin that represents Mandarin speech. For a mixed Mandarin/English answer, reduce meaningScore by at least 15 points per English word. English words cannot receive meaning credit, and two English words cap meaningScore at 70.",
         "Award full marks if userTranscript has the same meaning and is grammatically correct Mandarin, even when the wording differs from the example.",
-        "Score meaningScore and grammarScore as 0-100 integers.",
+        "Score meaningScore and grammarScore as 0-100 integers, and englishWordCount as a non-negative integer.",
         "Score meaningScore and grammarScore independently. Do not let one score mechanically determine, cap, or pull down the other.",
         "meaningScore measures only whether the user expressed the target meaning. Missing, changed, or incorrect prompt details belong to meaningScore, not grammarScore, when the remaining sentence is grammatical Mandarin.",
         "grammarScore measures only the grammatical form of the literal transcript: Mandarin word order, sentence structure, required function words and particles, classifier use, aspect/tense markers where the utterance requires them, negation/question placement, and whether the result is syntactically interpretable.",
@@ -165,11 +166,12 @@ function buildEvaluationPrompt(input: EvaluationInput) {
 const evaluationReportSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["isCorrect", "meaningScore", "grammarScore"],
+  required: ["isCorrect", "meaningScore", "grammarScore", "englishWordCount"],
   properties: {
     isCorrect: { type: "boolean" },
     meaningScore: { type: "integer" },
     grammarScore: { type: "integer" },
+    englishWordCount: { type: "integer", minimum: 0 },
   },
 } as const;
 
@@ -193,30 +195,42 @@ function parseEvaluationReport(outputText: string): CorrectnessEvaluation {
   }
 
   return {
-    isCorrect: parsed.isCorrect,
+    isCorrect: parsed.isCorrect && parsed.englishWordCount === 0,
     overallScore: calculateDeterministicScore([
       parsed.meaningScore,
       parsed.grammarScore,
     ]),
-    meaningScore: clampScore(parsed.meaningScore),
+    meaningScore: applyEnglishWordPenalty(
+      parsed.meaningScore,
+      parsed.englishWordCount,
+    ),
     grammarScore: clampScore(parsed.grammarScore),
   };
 }
 
 function isCorrectnessEvaluation(
   value: unknown,
-): value is CorrectnessEvaluation {
+): value is CorrectnessEvaluation & { englishWordCount: number } {
   if (!value || typeof value !== "object") {
     return false;
   }
 
   const report = value as Record<string, unknown>;
-  const scoreFields = ["meaningScore", "grammarScore"];
+  const scoreFields = ["meaningScore", "grammarScore", "englishWordCount"];
 
   return (
     typeof report.isCorrect === "boolean" &&
     scoreFields.every((field) => Number.isFinite(report[field]))
   );
+}
+
+function applyEnglishWordPenalty(score: number, englishWordCount: number) {
+  const maximumScore = Math.max(
+    0,
+    100 - Math.max(0, Math.floor(englishWordCount)) * 15,
+  );
+
+  return Math.min(clampScore(score), maximumScore);
 }
 
 export function calculateDeterministicScore(scores: number[]) {
@@ -228,7 +242,6 @@ export function calculateDeterministicScore(scores: number[]) {
     scores.reduce((total, score) => total + score, 0) / scores.length,
   );
 }
-
 export function clampScore(score: number) {
   return Math.max(0, Math.min(100, Math.round(score)));
 }

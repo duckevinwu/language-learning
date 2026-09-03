@@ -11,6 +11,7 @@ import type {
 
 type ParsedAudioCorrectnessEvaluation = AudioCorrectnessEvaluation & {
   naturalnessScore: number;
+  englishWordCount: number;
 };
 
 const GPT_AUDIO_EVALUATION_MODEL = "gpt-audio-1.5";
@@ -98,6 +99,7 @@ const mandarinAudioEvaluationTool = {
         "isCorrect",
         "overallScore",
         "meaningScore",
+        "englishWordCount",
         "grammarScore",
         "naturalnessScore",
         "pronunciationScore",
@@ -121,6 +123,12 @@ const mandarinAudioEvaluationTool = {
             "How completely the spoken answer expresses the English prompt meaning. Isolated matching words or characters must not receive a high score.",
         },
         grammarScore: { type: "integer", minimum: 0, maximum: 100 },
+        englishWordCount: {
+          type: "integer",
+          minimum: 0,
+          description:
+            "Number of English words actually spoken. Do not count pinyin that represents Mandarin speech.",
+        },
         naturalnessScore: { type: "integer", minimum: 0, maximum: 100 },
         pronunciationScore: {
           type: "integer",
@@ -166,6 +174,7 @@ function buildAudioEvaluationPrompt(challenge: Challenge) {
         "Do not silently repair, normalize, complete, predict, or reinterpret a broken utterance into a good Mandarin sentence.",
         "A bad transcript that preserves the learner's mistake is more useful than a polished transcript that hides the mistake.",
         "Grade only the actual spoken content in transcript. A few correct characters or words are not enough for a high score if the full prompt meaning is missing.",
+        "This is a Mandarin speaking exercise, not a translation exercise. Never award meaning credit for English merely because it translates the prompt: an entirely English answer must have isCorrect false and meaningScore 0. Count every English word in englishWordCount; do not count pinyin that represents Mandarin speech. For a mixed Mandarin/English answer, reduce meaningScore by at least 15 points per English word. English words cannot receive meaning credit, and two English words cap meaningScore at 70.",
         "If they mostly did not speak Mandarin, transcribe what you can and score correctness very low.",
         "The exampleMandarinAnswer is only one correct example, not the only valid answer.",
         "Award full meaning marks only if the spoken answer expresses all essential parts of the English prompt, even when wording differs from the example.",
@@ -232,13 +241,17 @@ function parseAudioEvaluationReport(
   }
 
 
+  const transcript = parsed.transcript.trim();
+  const isMandarinResponse = /\p{Script=Han}/u.test(transcript);
   const pronunciationNeedsWork = parsed.pronunciationNeedsWork;
   const pronunciationFeedback = parsed.pronunciationFeedback?.trim();
-  const meaningScore = clampScore(parsed.meaningScore);
+  const meaningScore = isMandarinResponse
+    ? applyEnglishWordPenalty(parsed.meaningScore, parsed.englishWordCount)
+    : 0;
   const overallScore = clampOverallScore(
     parsed.overallScore,
     meaningScore,
-    parsed.isCorrect,
+    isMandarinResponse && parsed.isCorrect,
   );
 
   if (
@@ -252,8 +265,9 @@ function parseAudioEvaluationReport(
   }
 
   return {
-    transcript: parsed.transcript.trim(),
-    isCorrect: parsed.isCorrect,
+    transcript,
+    isCorrect:
+      isMandarinResponse && parsed.isCorrect && parsed.englishWordCount === 0,
     overallScore,
     meaningScore,
     grammarScore: clampScore(parsed.grammarScore),
@@ -264,6 +278,15 @@ function parseAudioEvaluationReport(
     ...(pronunciationFeedback ? { pronunciationFeedback } : {}),
     pronunciationProvider: GPT_AUDIO_EVALUATION_MODEL,
   };
+}
+
+function applyEnglishWordPenalty(score: number, englishWordCount: number) {
+  const maximumScore = Math.max(
+    0,
+    100 - Math.max(0, Math.floor(englishWordCount)) * 15,
+  );
+
+  return Math.min(clampScore(score), maximumScore);
 }
 
 function clampOverallScore(
@@ -283,7 +306,6 @@ function clampOverallScore(
 
   return score;
 }
-
 function isSpecificPronunciationFeedback(feedback: string | undefined) {
   if (!feedback) {
     return false;
@@ -306,6 +328,7 @@ function isAudioCorrectnessEvaluation(
   const scoreFields = [
     "overallScore",
     "meaningScore",
+    "englishWordCount",
     "grammarScore",
     "naturalnessScore",
     "pronunciationScore",
