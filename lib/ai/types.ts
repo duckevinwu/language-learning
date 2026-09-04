@@ -25,7 +25,10 @@ export type AudioInput = {
   size: number;
 };
 
-export type EvaluationMode = "standard" | "gpt-audio";
+export type EvaluationMode =
+  | "standard"
+  | "gpt-audio"
+  | "transcript-gpt-audio";
 
 export type TranscriptionResult = {
   transcript: string;
@@ -35,6 +38,7 @@ export type TranscriptionResult = {
 export type EvaluationInput = {
   userTranscript: string;
   englishPrompt?: string;
+  allowedEnglishTokens?: string[];
 };
 
 export type ExampleSentencePart = {
@@ -55,6 +59,11 @@ export type CorrectnessEvaluation = {
 export type AudioEvaluationInput = {
   audio: AudioInput;
   challenge: Challenge;
+  /**
+   * When supplied, this upstream transcription is the authoritative record of
+   * what the learner said. Audio may be used only for pronunciation feedback.
+   */
+  authoritativeTranscript?: string;
 };
 
 export type AudioCorrectnessEvaluation = CorrectnessEvaluation & {

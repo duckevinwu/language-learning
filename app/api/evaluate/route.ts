@@ -129,7 +129,10 @@ export async function POST(request: Request) {
   );
 
   try {
-    if (evaluationMode === "gpt-audio") {
+    if (
+      evaluationMode === "gpt-audio" ||
+      evaluationMode === "transcript-gpt-audio"
+    ) {
       if (!isWavAudio(audioInput)) {
         return jsonWithCors(
           request,
@@ -137,7 +140,9 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
+    }
 
+    if (evaluationMode === "gpt-audio") {
       const evaluator = getAudioMandarinEvaluator();
       const audioCorrectness = await measureAsync(
         timings,
@@ -160,6 +165,7 @@ export async function POST(request: Request) {
         ),
         ...buildDebugTimingsField(timings, requestStartedAt),
       };
+      logEvaluationTimings(evaluationMode, timings, requestStartedAt);
       return jsonWithCors(request, report);
     }
 
@@ -188,6 +194,35 @@ export async function POST(request: Request) {
         ),
         ...buildDebugTimingsField(timings, requestStartedAt),
       };
+      logEvaluationTimings(evaluationMode, timings, requestStartedAt);
+      return jsonWithCors(request, report);
+    }
+
+    if (evaluationMode === "transcript-gpt-audio") {
+      const evaluator = getAudioMandarinEvaluator();
+      const audioCorrectness = await measureAsync(
+        timings,
+        "server:transcriptGroundedGptAudioEvaluation",
+        () =>
+          evaluator.evaluate({
+            audio: audioInput,
+            challenge,
+            authoritativeTranscript: transcription.transcript,
+          }),
+      );
+      const report = {
+        ...measureSync(timings, "server:buildReport", () =>
+          buildEvaluationReport(
+            transcription.transcript,
+            audioCorrectness,
+            challenge,
+            evaluationMode,
+            exampleBreakdown,
+          ),
+        ),
+        ...buildDebugTimingsField(timings, requestStartedAt),
+      };
+      logEvaluationTimings(evaluationMode, timings, requestStartedAt);
       return jsonWithCors(request, report);
     }
 
@@ -199,6 +234,9 @@ export async function POST(request: Request) {
         evaluator.evaluate({
           userTranscript: transcription.transcript,
           englishPrompt: challenge.englishPrompt,
+          allowedEnglishTokens: getAllowedEnglishTokens(
+            challenge.exampleMandarinAnswer,
+          ),
         }),
       ),
       measureAsync(timings, "server:pronunciationAssessment", () =>
@@ -223,6 +261,7 @@ export async function POST(request: Request) {
       ),
       ...buildDebugTimingsField(timings, requestStartedAt),
     };
+    logEvaluationTimings(evaluationMode, timings, requestStartedAt);
     return jsonWithCors(request, report);
   } catch (error) {
     recordTiming(timings, "server:totalBeforeError", requestStartedAt);
@@ -279,6 +318,23 @@ function recordTiming(
   timings.push({
     label,
     durationMs: roundDuration(performance.now() - startedAt),
+  });
+}
+
+function logEvaluationTimings(
+  evaluationMode: EvaluationMode,
+  timings: EvaluationTiming[],
+  requestStartedAt: number,
+) {
+  console.info("Audio evaluation timings", {
+    evaluationMode,
+    timings: [
+      ...timings,
+      {
+        label: "server:total",
+        durationMs: roundDuration(performance.now() - requestStartedAt),
+      },
+    ],
   });
 }
 
@@ -394,7 +450,21 @@ function roundDuration(durationMs: number) {
 }
 
 function parseEvaluationMode(value: FormDataEntryValue | null): EvaluationMode {
-  return value === "gpt-audio" ? "gpt-audio" : "standard";
+  return value === "standard" ||
+    value === "gpt-audio" ||
+    value === "transcript-gpt-audio"
+    ? value
+    : "transcript-gpt-audio";
+}
+
+function getAllowedEnglishTokens(exampleMandarinAnswer: string) {
+  return [
+    ...new Set(
+      exampleMandarinAnswer.match(/[A-Za-z][A-Za-z'-]*/g)?.filter(
+        (token) => /^[A-Z]/.test(token),
+      ) ?? [],
+    ),
+  ];
 }
 
 function isWavAudio(audio: AudioInput) {

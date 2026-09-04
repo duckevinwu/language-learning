@@ -1,7 +1,12 @@
 import "server-only";
 
 import { AIProviderError } from "./errors";
-import { clampScore, getOpenAIClient, toProviderError } from "./openai";
+import {
+  calculateDeterministicScore,
+  clampScore,
+  getOpenAIClient,
+  toProviderError,
+} from "./openai";
 import type {
   AudioCorrectnessEvaluation,
   AudioEvaluationInput,
@@ -20,6 +25,13 @@ export class OpenAIGptAudioMandarinEvaluator implements AudioMandarinEvaluator {
   async evaluate(
     input: AudioEvaluationInput,
   ): Promise<AudioCorrectnessEvaluation> {
+    if (input.authoritativeTranscript) {
+      return this.evaluateTranscriptGrounded({
+        ...input,
+        authoritativeTranscript: input.authoritativeTranscript,
+      });
+    }
+
     if (input.audio.size === 0 || input.audio.data.byteLength === 0) {
       throw new AIProviderError("The uploaded audio file is empty.", 400);
     }
@@ -40,7 +52,10 @@ export class OpenAIGptAudioMandarinEvaluator implements AudioMandarinEvaluator {
             content: [
               {
                 type: "text",
-                text: buildAudioEvaluationPrompt(input.challenge),
+                text: buildAudioEvaluationPrompt(
+                  input.challenge,
+                  input.authoritativeTranscript,
+                ),
               },
               {
                 type: "input_audio",
@@ -74,7 +89,77 @@ export class OpenAIGptAudioMandarinEvaluator implements AudioMandarinEvaluator {
         );
       }
 
-      return parseAudioEvaluationReport(toolCall.function.arguments);
+      return parseAudioEvaluationReport(
+        toolCall.function.arguments,
+        input.authoritativeTranscript,
+      );
+    } catch (error) {
+      if (error instanceof AIProviderError) {
+        throw error;
+      }
+
+      throw toProviderError(error, "evaluation");
+    }
+  }
+
+  private async evaluateTranscriptGrounded(
+    input: AudioEvaluationInput & { authoritativeTranscript: string },
+  ): Promise<AudioCorrectnessEvaluation> {
+    if (input.audio.size === 0 || input.audio.data.byteLength === 0) {
+      throw new AIProviderError("The uploaded audio file is empty.", 400);
+    }
+
+    try {
+      const client = getOpenAIClient();
+      const audioBase64 = Buffer.from(input.audio.data).toString("base64");
+      const response = await client.chat.completions.create({
+        model: GPT_AUDIO_EVALUATION_MODEL,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You evaluate a Mandarin learner recording. The supplied transcript is immutable ground truth for correctness. Use audio only for pronunciation and tone scores. Return the requested scores only.",
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: buildTranscriptGroundedAudioPrompt(input),
+              },
+              {
+                type: "input_audio",
+                input_audio: { data: audioBase64, format: "wav" },
+              },
+            ],
+          },
+        ],
+        tool_choice: {
+          type: "function",
+          function: { name: "submit_transcript_grounded_audio_scores" },
+        },
+        tools: [transcriptGroundedAudioScoresTool],
+        temperature: 0,
+      });
+      const toolCall = response.choices[0]?.message.tool_calls?.find(
+        (call) =>
+          call.type === "function" &&
+          "function" in call &&
+          call.function.name === "submit_transcript_grounded_audio_scores",
+      );
+
+      if (!toolCall || !("function" in toolCall)) {
+        throw new AIProviderError(
+          "The audio evaluator did not return structured scores. Try again.",
+          502,
+        );
+      }
+
+      return parseTranscriptGroundedAudioScores(
+        toolCall.function.arguments,
+        input.authoritativeTranscript,
+        getAllowedEnglishTokens(input.challenge.exampleMandarinAnswer),
+      );
     } catch (error) {
       if (error instanceof AIProviderError) {
         throw error;
@@ -84,6 +169,35 @@ export class OpenAIGptAudioMandarinEvaluator implements AudioMandarinEvaluator {
     }
   }
 }
+
+const transcriptGroundedAudioScoresTool = {
+  type: "function",
+  function: {
+    name: "submit_transcript_grounded_audio_scores",
+    description:
+      "Submit transcript-grounded correctness and audio pronunciation scores without any written feedback.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "isCorrect",
+        "meaningScore",
+        "englishTokens",
+        "grammarScore",
+        "pronunciationScore",
+        "toneScore",
+      ],
+      properties: {
+        isCorrect: { type: "boolean" },
+        meaningScore: { type: "integer", minimum: 0, maximum: 100 },
+        englishTokens: { type: "array", items: { type: "string" } },
+        grammarScore: { type: "integer", minimum: 0, maximum: 100 },
+        pronunciationScore: { type: "integer", minimum: 0, maximum: 100 },
+        toneScore: { type: "integer", minimum: 0, maximum: 100 },
+      },
+    },
+  },
+} as const;
 
 const mandarinAudioEvaluationTool = {
   type: "function",
@@ -159,12 +273,22 @@ const mandarinAudioEvaluationTool = {
   },
 } as const;
 
-function buildAudioEvaluationPrompt(challenge: Challenge) {
+function buildAudioEvaluationPrompt(
+  challenge: Challenge,
+  authoritativeTranscript?: string,
+) {
   return JSON.stringify(
     {
       task: "Evaluate a completed Mandarin spoken-answer recording.",
       englishPrompt: challenge.englishPrompt,
       exampleMandarinAnswer: challenge.exampleMandarinAnswer,
+      ...(authoritativeTranscript
+        ? {
+            authoritativeTranscript,
+            transcriptRule:
+              "The authoritativeTranscript was produced upstream and is the exact record of what the learner said. Treat it as immutable ground truth. Determine isCorrect, meaningScore, grammarScore, naturalnessScore, and englishWordCount only from this supplied transcript. Do not transcribe, repair, reinterpret, normalize, translate, or use the audio to change those fields. Listen to the audio only for pronunciationScore, toneScore, pronunciationNeedsWork, and pronunciationFeedback.",
+          }
+        : {}),
       gradingRules: [
         "The speaker is a beginner. Beginner mistakes are expected and must be preserved in transcript because they are the evidence used for learning.",
         "Listen to the audio directly; do not assume the learner said the example answer or any ideal answer.",
@@ -221,6 +345,7 @@ function buildAudioEvaluationPrompt(challenge: Challenge) {
 
 function parseAudioEvaluationReport(
   outputText: string,
+  authoritativeTranscript?: string,
 ): AudioCorrectnessEvaluation {
   let parsed: unknown;
 
@@ -241,7 +366,7 @@ function parseAudioEvaluationReport(
   }
 
 
-  const transcript = parsed.transcript.trim();
+  const transcript = (authoritativeTranscript ?? parsed.transcript).trim();
   const isMandarinResponse = /\p{Script=Han}/u.test(transcript);
   const pronunciationNeedsWork = parsed.pronunciationNeedsWork;
   const pronunciationFeedback = parsed.pronunciationFeedback?.trim();
@@ -278,6 +403,137 @@ function parseAudioEvaluationReport(
     ...(pronunciationFeedback ? { pronunciationFeedback } : {}),
     pronunciationProvider: GPT_AUDIO_EVALUATION_MODEL,
   };
+}
+
+function getAllowedEnglishTokens(exampleMandarinAnswer: string) {
+  return [
+    ...new Set(
+      exampleMandarinAnswer.match(/[A-Za-z][A-Za-z'-]*/g)?.filter(
+        (token) => /^[A-Z]/.test(token),
+      ) ?? [],
+    ),
+  ];
+}
+
+function buildTranscriptGroundedAudioPrompt(
+  input: AudioEvaluationInput & { authoritativeTranscript: string },
+) {
+  return JSON.stringify({
+    task: "Score a Mandarin learner recording.",
+    authoritativeTranscript: input.authoritativeTranscript,
+    englishPrompt: input.challenge.englishPrompt,
+    allowedEnglishTokens: getAllowedEnglishTokens(
+      input.challenge.exampleMandarinAnswer,
+    ),
+    rules: [
+      "Treat authoritativeTranscript as the exact, immutable record of what was said.",
+      "Determine isCorrect, meaningScore, grammarScore, and englishTokens only from authoritativeTranscript. Never repair, infer, translate, or reinterpret it from the audio.",
+      "The user can express the target meaning with wording that differs from any example answer.",
+      "This is a Mandarin speaking exercise, not a translation exercise. Tokens in allowedEnglishTokens are permitted proper names and must not count as English words or reduce meaning. Do not award meaning credit for any other English words or sentences merely because they translate the prompt. An entirely English answer, aside from allowed proper names, must receive meaningScore 0 and isCorrect false. Return every actual English word in englishTokens, including allowed names but excluding pinyin that represents Mandarin speech. For mixed Mandarin/English answers, reduce meaningScore by at least 15 points per other English word. Other English words cannot receive meaning credit, and two cap meaningScore at 70.",
+      "Award full marks if authoritativeTranscript has the same meaning and is grammatically correct Mandarin, even when wording differs from any example answer.",
+      "Score meaningScore and grammarScore as 0-100 integers. Return englishTokens as an array.",
+      "Score meaningScore and grammarScore independently. Do not let one score mechanically determine, cap, or pull down another.",
+      "meaningScore measures only whether the learner expressed the target meaning. Missing, changed, or incorrect prompt details belong to meaningScore, not grammarScore, when the remaining sentence is grammatical Mandarin.",
+      "grammarScore measures only the grammatical form of authoritativeTranscript: Mandarin word order, sentence structure, required function words and particles, classifier use, aspect/tense markers where the utterance requires them, negation/question placement, and whether the result is syntactically interpretable.",
+      "For grammarScore, ignore whether the answer matches the English prompt. A fluent, grammatical Mandarin sentence that answers the wrong question can score 90-100 for grammar while receiving a low meaningScore.",
+      "Do not penalize grammarScore for vocabulary choice, idiomatic preference, brevity, or omitted prompt details unless they make the actual Mandarin construction ungrammatical or impossible to interpret. Do not penalize pronunciation, tones, recording quality, or punctuation.",
+      "Use this grammarScore calibration: 95-100 = fully well-formed Mandarin with no meaningful grammar error; 85-94 = one minor grammar/word-order/particle issue but clearly well-formed; 70-84 = one noticeable or a few minor grammar errors, yet the sentence structure remains clear; 50-69 = repeated or significant grammar errors that make the sentence awkward or partly unclear; 25-49 = broken word order or missing core grammar that makes much of the utterance hard to parse; 0-24 = isolated words, mostly non-Mandarin, or no interpretable Mandarin sentence structure.",
+      "When choosing a grammarScore, first classify the transcript into one calibration band, then select a score within that band. Do not use an extreme low score for a single minor error.",
+      "Set isCorrect true when the answer would be accepted as correct in a speaking practice exercise.",
+      "Do not penalize missing punctuation or minor transcription punctuation differences.",
+      "Use audio only for pronunciationScore and toneScore. Pronunciation/tone calibration: 95-100 = accurate and natural; 85-94 = strong with only minor accent or uncertainty; 70-84 = understandable but with at least one noticeable issue; 50-69 = repeated or meaning-risking issues; below 50 = hard to understand or many wrong tones.",
+      "If any syllable has a clear wrong tone category, cap toneScore at 79. If multiple syllables have clear wrong tone categories, cap toneScore at 69. If tones are mostly flat or missing, cap toneScore at 74.",
+      "If an initial, final, or rhythm issue makes a syllable sound like a different Mandarin syllable, cap pronunciationScore at 79. If this happens repeatedly, cap pronunciationScore at 69.",
+      "Return only the requested structured fields. Do not generate a transcript, explanation, feedback, issue list, or advice.",
+    ],
+  });
+}
+
+function parseTranscriptGroundedAudioScores(
+  outputText: string,
+  transcript: string,
+  allowedEnglishTokens: string[],
+): AudioCorrectnessEvaluation {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(outputText);
+  } catch {
+    throw new AIProviderError(
+      "The audio evaluator returned invalid scores. Try again.",
+      502,
+    );
+  }
+
+  if (!isTranscriptGroundedAudioScores(parsed)) {
+    throw new AIProviderError(
+      "The audio evaluator returned incomplete scores. Try again.",
+      502,
+    );
+  }
+
+  const englishWordCount = countDisallowedEnglishTokens(
+    parsed.englishTokens,
+    allowedEnglishTokens,
+  );
+  const isMandarinResponse = /\p{Script=Han}/u.test(transcript);
+  const meaningScore = isMandarinResponse
+    ? applyEnglishWordPenalty(parsed.meaningScore, englishWordCount)
+    : 0;
+  const grammarScore = clampScore(parsed.grammarScore);
+
+  return {
+    transcript,
+    isCorrect:
+      isMandarinResponse && parsed.isCorrect && englishWordCount === 0,
+    overallScore: calculateDeterministicScore([meaningScore, grammarScore]),
+    meaningScore,
+    grammarScore,
+    pronunciationScore: clampScore(parsed.pronunciationScore),
+    toneScore: clampScore(parsed.toneScore),
+    pronunciationNeedsWork: false,
+    pronunciationProvider: GPT_AUDIO_EVALUATION_MODEL,
+  };
+}
+
+function countDisallowedEnglishTokens(
+  englishTokens: string[],
+  allowedEnglishTokens: string[],
+) {
+  const allowedTokens = new Set(
+    allowedEnglishTokens.map((token) => token.toLocaleLowerCase()),
+  );
+
+  return englishTokens.filter(
+    (token) => !allowedTokens.has(token.toLocaleLowerCase()),
+  ).length;
+}
+function isTranscriptGroundedAudioScores(
+  value: unknown,
+): value is {
+  isCorrect: boolean;
+  meaningScore: number;
+  englishTokens: string[];
+  grammarScore: number;
+  pronunciationScore: number;
+  toneScore: number;
+} {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const report = value as Record<string, unknown>;
+  return (
+    typeof report.isCorrect === "boolean" &&
+    [
+      "meaningScore",
+      "grammarScore",
+      "pronunciationScore",
+      "toneScore",
+    ].every((field) => Number.isFinite(report[field])) &&
+    Array.isArray(report.englishTokens) &&
+    report.englishTokens.every((token) => typeof token === "string")
+  );
 }
 
 function applyEnglishWordPenalty(score: number, englishWordCount: number) {

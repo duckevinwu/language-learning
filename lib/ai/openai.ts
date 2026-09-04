@@ -98,7 +98,11 @@ export class OpenAIMandarinEvaluator implements MandarinEvaluator {
         },
       });
 
-      return parseEvaluationReport(response.output_text);
+      return parseEvaluationReport(
+        response.output_text,
+        input.userTranscript,
+        input.allowedEnglishTokens ?? [],
+      );
     } catch (error) {
       if (error instanceof AIProviderError) {
         throw error;
@@ -142,11 +146,12 @@ function buildEvaluationPrompt(input: EvaluationInput) {
       task: "Evaluate a Mandarin spoken-answer transcript for correctness.",
       userTranscript: input.userTranscript,
       englishPrompt: input.englishPrompt,
+      allowedEnglishTokens: input.allowedEnglishTokens ?? [],
       gradingRules: [
         "The user can express the target meaning with wording that differs from any example answer.",
-        "This is a Mandarin speaking exercise, not a translation exercise. Do not award meaning credit for English words or sentences merely because they translate the prompt. An entirely English answer must receive meaningScore 0 and isCorrect false. Count every English word in englishWordCount; do not count pinyin that represents Mandarin speech. For a mixed Mandarin/English answer, reduce meaningScore by at least 15 points per English word. English words cannot receive meaning credit, and two English words cap meaningScore at 70.",
+        "This is a Mandarin speaking exercise, not a translation exercise. Tokens in allowedEnglishTokens are permitted proper names and must not reduce meaning. Do not award meaning credit for any other English words or sentences merely because they translate the prompt. An entirely English answer, aside from allowed proper names, must receive meaningScore 0 and isCorrect false. Return every actual English word in englishTokens, including allowed names but excluding pinyin that represents Mandarin speech. For mixed Mandarin/English answers, reduce meaningScore by at least 15 points per other English word. Other English words cannot receive meaning credit, and two cap meaningScore at 70.",
         "Award full marks if userTranscript has the same meaning and is grammatically correct Mandarin, even when the wording differs from the example.",
-        "Score meaningScore and grammarScore as 0-100 integers, and englishWordCount as a non-negative integer.",
+        "Score meaningScore and grammarScore as 0-100 integers. Return englishTokens as an array containing every actual English word in the transcript, including allowed names but excluding pinyin.",
         "Score meaningScore and grammarScore independently. Do not let one score mechanically determine, cap, or pull down the other.",
         "meaningScore measures only whether the user expressed the target meaning. Missing, changed, or incorrect prompt details belong to meaningScore, not grammarScore, when the remaining sentence is grammatical Mandarin.",
         "grammarScore measures only the grammatical form of the literal transcript: Mandarin word order, sentence structure, required function words and particles, classifier use, aspect/tense markers where the utterance requires them, negation/question placement, and whether the result is syntactically interpretable.",
@@ -166,16 +171,20 @@ function buildEvaluationPrompt(input: EvaluationInput) {
 const evaluationReportSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["isCorrect", "meaningScore", "grammarScore", "englishWordCount"],
+  required: ["isCorrect", "meaningScore", "grammarScore", "englishTokens"],
   properties: {
     isCorrect: { type: "boolean" },
     meaningScore: { type: "integer" },
     grammarScore: { type: "integer" },
-    englishWordCount: { type: "integer", minimum: 0 },
+    englishTokens: { type: "array", items: { type: "string" } },
   },
 } as const;
 
-function parseEvaluationReport(outputText: string): CorrectnessEvaluation {
+function parseEvaluationReport(
+  outputText: string,
+  transcript: string,
+  allowedEnglishTokens: string[],
+): CorrectnessEvaluation {
   let parsed: unknown;
 
   try {
@@ -194,33 +203,52 @@ function parseEvaluationReport(outputText: string): CorrectnessEvaluation {
     );
   }
 
+  const englishWordCount = countDisallowedEnglishTokens(
+    parsed.englishTokens,
+    allowedEnglishTokens,
+  );
+
+  const meaningScore = applyEnglishWordPenalty(
+    parsed.meaningScore,
+    englishWordCount,
+  );
+  const grammarScore = clampScore(parsed.grammarScore);
+
   return {
-    isCorrect: parsed.isCorrect && parsed.englishWordCount === 0,
-    overallScore: calculateDeterministicScore([
-      parsed.meaningScore,
-      parsed.grammarScore,
-    ]),
-    meaningScore: applyEnglishWordPenalty(
-      parsed.meaningScore,
-      parsed.englishWordCount,
-    ),
-    grammarScore: clampScore(parsed.grammarScore),
+    isCorrect: parsed.isCorrect && englishWordCount === 0,
+    overallScore: calculateDeterministicScore([meaningScore, grammarScore]),
+    meaningScore,
+    grammarScore,
   };
 }
 
+function countDisallowedEnglishTokens(
+  englishTokens: string[],
+  allowedEnglishTokens: string[],
+) {
+  const allowedTokens = new Set(
+    allowedEnglishTokens.map((token) => token.toLocaleLowerCase()),
+  );
+
+  return englishTokens.filter(
+    (token) => !allowedTokens.has(token.toLocaleLowerCase()),
+  ).length;
+}
 function isCorrectnessEvaluation(
   value: unknown,
-): value is CorrectnessEvaluation & { englishWordCount: number } {
+): value is CorrectnessEvaluation & { englishTokens: string[] } {
   if (!value || typeof value !== "object") {
     return false;
   }
 
   const report = value as Record<string, unknown>;
-  const scoreFields = ["meaningScore", "grammarScore", "englishWordCount"];
+  const scoreFields = ["meaningScore", "grammarScore"];
 
   return (
     typeof report.isCorrect === "boolean" &&
-    scoreFields.every((field) => Number.isFinite(report[field]))
+    scoreFields.every((field) => Number.isFinite(report[field])) &&
+    Array.isArray(report.englishTokens) &&
+    report.englishTokens.every((token) => typeof token === "string")
   );
 }
 

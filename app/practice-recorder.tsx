@@ -39,7 +39,7 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [evaluationMode, setEvaluationMode] =
-    useState<EvaluationMode>("standard");
+    useState<EvaluationMode>("transcript-gpt-audio");
   const [isLoadingChallenge, setIsLoadingChallenge] = useState(false);
   const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
 
@@ -463,7 +463,7 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
         />
 
         <div className="flex flex-wrap items-center gap-2">
-          {(["standard", "gpt-audio"] as const).map((mode) => (
+          {(["transcript-gpt-audio", "standard", "gpt-audio"] as const).map((mode) => (
             <button
               aria-pressed={evaluationMode === mode}
               className={`h-10 rounded-md border px-4 text-sm font-semibold transition disabled:cursor-not-allowed ${
@@ -480,7 +480,11 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
               }}
               type="button"
             >
-              {mode === "standard" ? "Standard" : "GPT audio"}
+              {mode === "standard"
+                ? "Transcript + Azure"
+                : mode === "transcript-gpt-audio"
+                  ? "Transcript + GPT audio"
+                  : "GPT audio"}
             </button>
           ))}
         </div>
@@ -666,7 +670,7 @@ function DayCompleteView({
             Daily Challenge Complete
           </p>
           <h2 className="max-w-2xl text-4xl font-semibold leading-tight sm:text-5xl">
-            You completed today's challenge.
+            You completed today&apos;s challenge.
           </h2>
         </div>
 
@@ -1050,8 +1054,9 @@ function EvaluationView({
         </div>
       </section>
 
-      {report.pronunciationProvider && (
-        <section className="space-y-2 text-sm leading-7">
+      {report.evaluationMode !== "transcript-gpt-audio" &&
+        report.pronunciationProvider && (
+          <section className="space-y-2 text-sm leading-7">
           <h3 className="font-semibold text-[#756b5d]">Pronunciation</h3>
           {report.pronunciationFeedback && (
             <p className="border-l-4 border-[#bfb4a4] bg-[#fbf8f1] px-4 py-3 text-sm leading-6 text-[#1f1b16]">
@@ -1094,8 +1099,8 @@ function EvaluationView({
               {report.pronunciationProvider}
             </p>
           )}
-        </section>
-      )}
+          </section>
+        )}
     </div>
   );
 }
