@@ -8,7 +8,7 @@ import { getStaticExampleBreakdown } from "@/lib/ai/example-breakdown-store";
 import { calculateDeterministicScore } from "@/lib/ai/openai";
 import {
   getAudioMandarinEvaluator,
-  getMandarinEvaluator,
+  getLanguageEvaluator,
   getPronunciationAssessor,
   getSpeechTranscriber,
 } from "@/lib/ai/providers";
@@ -24,6 +24,7 @@ import type {
   PronunciationAssessmentResult,
 } from "@/lib/ai/types";
 import { getChallengeById } from "@/lib/challenge";
+import { getLanguageProfile } from "@/lib/language";
 import { romanizeMandarin, romanizeMandarinInContext } from "@/lib/mandarin/pinyin";
 
 export async function POST(request: Request) {
@@ -68,6 +69,14 @@ export async function POST(request: Request) {
   const challengeId = formData.get("challengeId");
   const evaluationMode = parseEvaluationMode(formData.get("evaluationMode"));
 
+  if (!evaluationMode) {
+    return jsonWithCors(
+      request,
+      { error: "A valid evaluationMode is required." },
+      { status: 400 },
+    );
+  }
+
   if (typeof challengeId !== "string" || challengeId.trim().length === 0) {
     return jsonWithCors(
       request,
@@ -82,6 +91,16 @@ export async function POST(request: Request) {
     return jsonWithCors(
       request,
       { error: "The requested challenge could not be found." },
+      { status: 400 },
+    );
+  }
+
+  const languageProfile = getLanguageProfile(challenge.language);
+
+  if (!languageProfile.evaluationModes.includes(evaluationMode)) {
+    return jsonWithCors(
+      request,
+      { error: `Evaluation mode ${evaluationMode} is not available for ${languageProfile.label}.` },
       { status: 400 },
     );
   }
@@ -125,7 +144,7 @@ export async function POST(request: Request) {
     "server:exampleBreakdownLookup",
     () =>
       getStaticExampleBreakdown(challenge.id) ??
-      buildFallbackExampleBreakdown(challenge.exampleMandarinAnswer),
+      buildFallbackExampleBreakdown(challenge.exampleAnswer, challenge.exampleReading),
   );
 
   try {
@@ -173,30 +192,8 @@ export async function POST(request: Request) {
     const transcription = await measureAsync(
       timings,
       "server:transcription",
-      () => transcriber.transcribe(audioInput),
+      () => transcriber.transcribe(audioInput, challenge.language),
     );
-
-    if (!isMandarinTranscript(transcription.transcript)) {
-      const report = {
-        ...measureSync(timings, "server:buildReport", () =>
-          buildEvaluationReport(
-            transcription.transcript,
-            {
-              isCorrect: false,
-              overallScore: 0,
-              meaningScore: 0,
-              grammarScore: 0,
-            },
-            challenge,
-            evaluationMode,
-            exampleBreakdown,
-          ),
-        ),
-        ...buildDebugTimingsField(timings, requestStartedAt),
-      };
-      logEvaluationTimings(evaluationMode, timings, requestStartedAt);
-      return jsonWithCors(request, report);
-    }
 
     if (evaluationMode === "transcript-gpt-audio") {
       const evaluator = getAudioMandarinEvaluator();
@@ -226,17 +223,15 @@ export async function POST(request: Request) {
       return jsonWithCors(request, report);
     }
 
-    const evaluator = getMandarinEvaluator();
-    const pronunciationAssessor = getPronunciationAssessor();
+    const evaluator = getLanguageEvaluator();
+    const pronunciationAssessor = getPronunciationAssessor(challenge.language);
     const parallelStartedAt = performance.now();
     const [correctness, pronunciation] = await Promise.all([
       measureAsync(timings, "server:correctnessEvaluation", () =>
         evaluator.evaluate({
           userTranscript: transcription.transcript,
           englishPrompt: challenge.englishPrompt,
-          allowedEnglishTokens: getAllowedEnglishTokens(
-            challenge.exampleMandarinAnswer,
-          ),
+          language: challenge.language,
         }),
       ),
       measureAsync(timings, "server:pronunciationAssessment", () =>
@@ -449,22 +444,14 @@ function roundDuration(durationMs: number) {
   return Math.round(durationMs * 10) / 10;
 }
 
-function parseEvaluationMode(value: FormDataEntryValue | null): EvaluationMode {
+function parseEvaluationMode(
+  value: FormDataEntryValue | null,
+): EvaluationMode | null {
   return value === "standard" ||
     value === "gpt-audio" ||
     value === "transcript-gpt-audio"
     ? value
-    : "transcript-gpt-audio";
-}
-
-function getAllowedEnglishTokens(exampleMandarinAnswer: string) {
-  return [
-    ...new Set(
-      exampleMandarinAnswer.match(/[A-Za-z][A-Za-z'-]*/g)?.filter(
-        (token) => /^[A-Z]/.test(token),
-      ) ?? [],
-    ),
-  ];
+    : null;
 }
 
 function isWavAudio(audio: AudioInput) {
@@ -476,10 +463,6 @@ function isWavAudio(audio: AudioInput) {
 }
 
 const hanCharacterPattern = /\p{Script=Han}/u;
-
-function isMandarinTranscript(transcript: string) {
-  return hasHanCharacters(transcript);
-}
 
 function hasHanCharacters(text: string) {
   return hanCharacterPattern.test(text);
@@ -502,14 +485,20 @@ function buildEvaluationReport(
   return {
     ...correctness,
     overallScore: calculateVisibleOverallScore(correctness, pronunciation),
+    language: challenge.language,
+    ...(getLanguageProfile(challenge.language).readingLabel
+      ? { readingLabel: getLanguageProfile(challenge.language).readingLabel }
+      : {}),
     evaluationMode,
     transcript,
-    transcriptPinyin: romanizeMandarin(transcript),
-    exampleMandarinAnswer: challenge.exampleMandarinAnswer,
-    exampleMandarinPinyin: romanizeMandarin(challenge.exampleMandarinAnswer),
+    ...(challenge.language === "zh"
+      ? { transcriptReading: romanizeMandarin(transcript) }
+      : {}),
+    exampleAnswer: challenge.exampleAnswer,
+    ...(challenge.exampleReading ? { exampleReading: challenge.exampleReading } : {}),
     exampleBreakdown: enrichExampleBreakdown(
       exampleBreakdown,
-      challenge.exampleMandarinAnswer,
+      challenge,
     ),
     ...pronunciationFields,
   };
@@ -517,35 +506,37 @@ function buildEvaluationReport(
 
 function enrichExampleBreakdown(
   breakdown: ExampleSentencePart[],
-  exampleMandarinAnswer: string,
+  challenge: Challenge,
 ): ExampleSentencePart[] {
   const occurrenceCounts = new Map<string, number>();
   const parts = breakdown.length
     ? breakdown
-    : buildFallbackExampleBreakdown(exampleMandarinAnswer);
+    : buildFallbackExampleBreakdown(challenge.exampleAnswer, challenge.exampleReading);
 
   return parts.map((part) => {
     const occurrenceIndex = occurrenceCounts.get(part.text) ?? 0;
     occurrenceCounts.set(part.text, occurrenceIndex + 1);
-    const pinyin = hasHanCharacters(part.text)
-      ? romanizeMandarinInContext(part.text, exampleMandarinAnswer, {
+    const reading = challenge.language === "zh" && hasHanCharacters(part.text)
+      ? romanizeMandarinInContext(part.text, challenge.exampleAnswer, {
           occurrenceIndex,
         })
-      : undefined;
+      : part.reading;
 
     return {
       ...part,
-      ...(pinyin ? { pinyin } : {}),
+      ...(reading ? { reading } : {}),
     };
   });
 }
 
 function buildFallbackExampleBreakdown(
-  exampleMandarinAnswer: string,
+  exampleAnswer: string,
+  exampleReading?: string,
 ): ExampleSentencePart[] {
   return [
     {
-      text: exampleMandarinAnswer,
+      text: exampleAnswer,
+      ...(exampleReading ? { reading: exampleReading } : {}),
       definition: "Example answer",
     },
   ];
@@ -605,7 +596,7 @@ function enrichPronunciationAssessment(
 
             return {
               ...issue,
-              ...(pinyin ? { pinyin } : {}),
+              ...(pinyin ? { reading: pinyin, pinyin } : {}),
             };
           }),
         }

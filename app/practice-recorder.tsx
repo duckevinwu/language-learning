@@ -8,6 +8,7 @@ import type {
   PublicDailyChallenge,
 } from "@/lib/ai/types";
 import { BrowserSpeechSynthesisProvider } from "@/lib/speech/browser-speech-synthesis";
+import { getLanguageProfile, LANGUAGE_OPTIONS } from "@/lib/language";
 
 const PASSING_SCORE = 75;
 const CHALLENGE_COUNT = 3;
@@ -38,8 +39,9 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [evaluationMode, setEvaluationMode] =
-    useState<EvaluationMode>("transcript-gpt-audio");
+  const [evaluationMode, setEvaluationMode] = useState<EvaluationMode>(
+    () => getLanguageProfile(dailyChallenge.language).evaluationModes[0],
+  );
   const [isLoadingChallenge, setIsLoadingChallenge] = useState(false);
   const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
 
@@ -228,7 +230,10 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
     setError(null);
 
     try {
-      await provider.speak({ text });
+      await provider.speak({
+        text,
+        language: getLanguageProfile(currentDay.language).speechSynthesisLanguage,
+      });
       if (speechRequestIdRef.current === requestId) {
         setSpeakingKey(null);
       }
@@ -290,12 +295,12 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
     setStatus("idle");
   }
 
-  async function loadNewDay() {
+  async function loadNewDay(language = currentDay.language) {
     setIsLoadingChallenge(true);
     discardPracticeState();
 
     try {
-      const response = await fetch("/api/challenges/day", {
+      const response = await fetch(`/api/challenges/day?language=${language}`, {
         cache: "no-store",
       });
       const payload = await response.json();
@@ -304,7 +309,9 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
         throw new Error(payload?.error || "Could not load a daily challenge.");
       }
 
-      setCurrentDay(payload as PublicDailyChallenge);
+      const nextDay = payload as PublicDailyChallenge;
+      setCurrentDay(nextDay);
+      setEvaluationMode(getLanguageProfile(nextDay.language).evaluationModes[0]);
       setCurrentStepIndex(0);
       setStepReports([]);
       setDayEndReason(null);
@@ -317,6 +324,11 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
     } finally {
       setIsLoadingChallenge(false);
     }
+  }
+
+  function changeLanguage(language: PublicDailyChallenge["language"]) {
+    window.history.replaceState({}, "", `/?language=${language}`);
+    void loadNewDay(language);
   }
 
   async function submitRecording() {
@@ -418,6 +430,7 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
   const canSubmit = Boolean(audioBlob) && status === "recorded";
   const isBusy = status === "submitting";
   const controlsDisabled = isBusy || isLoadingChallenge;
+  const languageProfile = getLanguageProfile(currentDay.language);
 
   if (dayEndReason) {
     return (
@@ -434,6 +447,27 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
   return (
     <div className="grid flex-1 content-center gap-8 py-10 lg:grid-cols-[1fr_0.9fr] lg:py-16">
       <section className="space-y-8">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#ded7ca] pb-5">
+          <div>
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-[#756b5d]">
+              Language
+            </p>
+            <p className="mt-1 text-lg font-semibold">{languageProfile.label}</p>
+          </div>
+          <select
+            aria-label="Practice language"
+            className="h-10 rounded-md border border-[#bfb4a4] bg-[#fbf8f1] px-3 text-sm font-semibold text-[#2c2924]"
+            disabled={controlsDisabled || status === "recording"}
+            onChange={(event) => changeLanguage(event.target.value as PublicDailyChallenge["language"])}
+            value={currentDay.language}
+          >
+            {LANGUAGE_OPTIONS.map((option) => (
+              <option key={option.code} value={option.code}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-[#756b5d]">
             <span>Challenge {currentStepIndex + 1} of {CHALLENGE_COUNT}</span>
@@ -463,7 +497,7 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
         />
 
         <div className="flex flex-wrap items-center gap-2">
-          {(["transcript-gpt-audio", "standard", "gpt-audio"] as const).map((mode) => (
+          {languageProfile.evaluationModes.map((mode) => (
             <button
               aria-pressed={evaluationMode === mode}
               className={`h-10 rounded-md border px-4 text-sm font-semibold transition disabled:cursor-not-allowed ${
@@ -493,7 +527,7 @@ export function PracticeRecorder({ dailyChallenge }: PracticeRecorderProps) {
           <button
             className="h-12 rounded-md border border-[#bfb4a4] px-5 text-sm font-semibold text-[#2c2924] transition hover:bg-[#eee7dc] disabled:cursor-not-allowed disabled:text-[#9c9286]"
             disabled={controlsDisabled || status === "recording"}
-            onClick={loadNewDay}
+            onClick={() => void loadNewDay()}
             type="button"
           >
             {isLoadingChallenge ? "Loading..." : "Generate new day"}
@@ -971,6 +1005,7 @@ function EvaluationView({
     ["Meaning", report.meaningScore],
     ["Grammar", report.grammarScore],
     ["Pronunciation", report.pronunciationScore],
+    ["Tone", report.toneScore],
   ].filter((score): score is [string, number] => typeof score[1] === "number");
   const pronunciationIssues = report.pronunciationIssues ?? [];
 
@@ -1004,28 +1039,32 @@ function EvaluationView({
         <div>
           <dt className="font-semibold text-[#756b5d]">Transcript</dt>
           <dd className="mt-1 text-xl text-[#1f1b16]">{report.transcript}</dd>
-          <dd className="mt-1 text-sm text-[#756b5d]">
-            {report.transcriptPinyin}
-          </dd>
+          {report.transcriptReading && (
+            <dd className="mt-1 text-sm text-[#756b5d]">
+              {report.readingLabel}: {report.transcriptReading}
+            </dd>
+          )}
         </div>
         <div>
           <dt className="font-semibold text-[#756b5d]">Example answer</dt>
           <dd className="mt-1 flex flex-wrap items-center gap-2 text-xl text-[#1f1b16]">
-            <span>{report.exampleMandarinAnswer}</span>
+            <span>{report.exampleAnswer}</span>
             <SpeechPlayButton
               isActive={speakingKey === "report:example-answer"}
               label="Play example answer"
               onClick={() =>
                 onPlaySpeech(
                   "report:example-answer",
-                  report.exampleMandarinAnswer,
+                  report.exampleAnswer,
                 )
               }
             />
           </dd>
-          <dd className="mt-1 text-sm text-[#756b5d]">
-            {report.exampleMandarinPinyin}
-          </dd>
+          {report.exampleReading && (
+            <dd className="mt-1 text-sm text-[#756b5d]">
+              {report.readingLabel}: {report.exampleReading}
+            </dd>
+          )}
         </div>
       </dl>
       <section className="space-y-3">
@@ -1042,8 +1081,8 @@ function EvaluationView({
                 <p className="text-xl font-semibold text-[#1f1b16]">
                   {part.text}
                 </p>
-                {part.pinyin && (
-                  <p className="text-sm text-[#756b5d]">{part.pinyin}</p>
+                {part.reading && (
+                  <p className="text-sm text-[#756b5d]">{part.reading}</p>
                 )}
               </div>
               <p className="mt-1 text-sm leading-6 text-[#1f1b16]">
@@ -1079,9 +1118,9 @@ function EvaluationView({
                         <p className="text-xl font-semibold text-[#1f1b16]">
                           {issue.text}
                         </p>
-                        {issue.pinyin && (
+                        {issue.reading && (
                           <p className="text-xs text-[#756b5d]">
-                            {issue.pinyin}
+                            {issue.reading}
                           </p>
                         )}
                       </div>

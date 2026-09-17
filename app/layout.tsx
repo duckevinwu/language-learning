@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Daily Mandarin Speaking",
-  description: "A minimal Mandarin speaking practice prototype.",
+  title: "Daily Speaking Practice",
+  description: "A minimal language speaking practice app.",
 };
 
 export default function RootLayout({

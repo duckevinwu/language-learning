@@ -37,7 +37,7 @@ function readChallengeSeeds(source) {
   return [...matches].map((match) => ({
     id: match[1],
     englishPrompt: match[2],
-    exampleMandarinAnswer: match[3],
+    exampleAnswer: match[3],
   }));
 }
 
@@ -58,25 +58,26 @@ async function generateBreakdown(client, challenge) {
     model,
     input: JSON.stringify(
       {
-        task: "Break down a Mandarin example sentence for a beginner learner.",
+        task: "Break down a target-language example sentence for a beginner learner.",
         englishPrompt: challenge.englishPrompt,
-        exampleMandarinAnswer: challenge.exampleMandarinAnswer,
+        exampleAnswer: challenge.exampleAnswer,
+        language: challenge.id.slice(0, 2),
         rules: [
-          "Split exampleMandarinAnswer into 2-8 contiguous beginner-useful Mandarin chunks.",
-          "Each item must copy its text exactly from exampleMandarinAnswer.",
+          "Split exampleAnswer into 2-8 contiguous beginner-useful chunks.",
+          "Each item must copy its text exactly from exampleAnswer.",
           "Each definition should be a concise English gloss for that chunk.",
-          "Do not include pinyin; the app adds pinyin automatically.",
+          "Do not include a reading unless the target language uses one and it is certain.",
         ],
       },
       null,
       2,
     ),
     instructions:
-      "Split the Mandarin example answer into learner-useful chunks. Return JSON only.",
+      "Split the target-language example answer into learner-useful chunks. Return JSON only.",
     text: {
       format: {
         type: "json_schema",
-        name: "mandarin_example_breakdown",
+        name: "language_example_breakdown",
         strict: true,
         schema: {
           type: "object",

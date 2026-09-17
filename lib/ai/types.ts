@@ -1,20 +1,24 @@
 export type ChallengeDifficulty = "beginner" | "intermediate" | "advanced";
+export type LanguageCode = "zh" | "es" | "ja";
 
 export type Challenge = {
   id: string;
+  language: LanguageCode;
   englishPrompt: string;
-  exampleMandarinAnswer: string;
+  exampleAnswer: string;
+  exampleReading?: string;
   category: string;
   difficulty: ChallengeDifficulty;
   notes?: string;
 };
 
-export type PublicChallenge = Omit<Challenge, "exampleMandarinAnswer"> & {
+export type PublicChallenge = Omit<Challenge, "exampleAnswer"> & {
   exampleAnswer: string;
 };
 
 export type PublicDailyChallenge = {
   id: string;
+  language: LanguageCode;
   challenges: [PublicChallenge, PublicChallenge, PublicChallenge];
 };
 
@@ -38,12 +42,12 @@ export type TranscriptionResult = {
 export type EvaluationInput = {
   userTranscript: string;
   englishPrompt?: string;
-  allowedEnglishTokens?: string[];
+  language: LanguageCode;
 };
 
 export type ExampleSentencePart = {
   text: string;
-  pinyin?: string;
+  reading?: string;
   definition: string;
 };
 
@@ -69,7 +73,7 @@ export type AudioEvaluationInput = {
 export type AudioCorrectnessEvaluation = CorrectnessEvaluation & {
   transcript: string;
   pronunciationScore: number;
-  toneScore: number;
+  toneScore?: number;
   pronunciationNeedsWork: boolean;
   pronunciationFeedback?: string;
   pronunciationProvider: string;
@@ -82,6 +86,7 @@ export type PronunciationAssessmentInput = {
 
 export type PronunciationIssue = {
   text: string;
+  reading?: string;
   pinyin?: string;
   score: number;
   errorType?: string;
@@ -115,10 +120,12 @@ export type EvaluationDebug = {
 };
 
 export type EvaluationReport = CorrectnessEvaluation & {
+  language: LanguageCode;
   transcript: string;
-  transcriptPinyin: string;
-  exampleMandarinAnswer: string;
-  exampleMandarinPinyin: string;
+  readingLabel?: string;
+  transcriptReading?: string;
+  exampleAnswer: string;
+  exampleReading?: string;
   exampleBreakdown: ExampleSentencePart[];
   evaluationMode?: EvaluationMode;
   pronunciationScore?: number;
@@ -131,16 +138,19 @@ export type EvaluationReport = CorrectnessEvaluation & {
 };
 
 export interface SpeechTranscriber {
-  transcribe(input: AudioInput): Promise<TranscriptionResult>;
+  transcribe(input: AudioInput, language?: LanguageCode): Promise<TranscriptionResult>;
 }
 
-export interface MandarinEvaluator {
+export interface LanguageEvaluator {
   evaluate(input: EvaluationInput): Promise<CorrectnessEvaluation>;
 }
 
-export interface AudioMandarinEvaluator {
+export interface AudioLanguageEvaluator {
   evaluate(input: AudioEvaluationInput): Promise<AudioCorrectnessEvaluation>;
 }
+
+export type MandarinEvaluator = LanguageEvaluator;
+export type AudioMandarinEvaluator = AudioLanguageEvaluator;
 
 export interface PronunciationAssessor {
   assess(

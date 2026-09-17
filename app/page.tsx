@@ -1,10 +1,19 @@
 import { PracticeRecorder } from "./practice-recorder";
 import { getRandomDailyChallenge } from "@/lib/challenge";
+import { parseLanguageCode } from "@/lib/language";
 
 export const dynamic = "force-dynamic";
 
-export default function Home() {
-  const dailyChallenge = getRandomDailyChallenge();
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ language?: string | string[] }>;
+}) {
+  const params = await searchParams;
+  const language = parseLanguageCode(
+    Array.isArray(params.language) ? params.language[0] : params.language,
+  );
+  const dailyChallenge = getRandomDailyChallenge(language);
 
   return (
     <main className="min-h-screen bg-[#f8f5ef] text-[#1f1b16]">
@@ -12,7 +21,7 @@ export default function Home() {
         <header className="flex items-center justify-between border-b border-[#ded7ca] pb-5">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#756b5d]">
-              Mandarin Practice
+              Speaking Practice
             </p>
             <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">
               Daily Challenge

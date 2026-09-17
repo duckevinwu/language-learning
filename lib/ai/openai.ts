@@ -6,13 +6,14 @@ import type {
   AudioInput,
   CorrectnessEvaluation,
   EvaluationInput,
-  MandarinEvaluator,
+  LanguageCode,
+  LanguageEvaluator,
   SpeechTranscriber,
   TranscriptionResult,
 } from "./types";
+import { getLanguageProfile } from "@/lib/language";
 
 const TRANSCRIPTION_MODEL = "gpt-transcribe";
-const TRANSCRIPTION_LANGUAGES = ["zh", "en"];
 const EVALUATION_MODEL = "gpt-5.6-luna";
 
 let openaiClient: OpenAI | null = null;
@@ -33,7 +34,10 @@ export function getOpenAIClient() {
 }
 
 export class OpenAISpeechTranscriber implements SpeechTranscriber {
-  async transcribe(input: AudioInput): Promise<TranscriptionResult> {
+  async transcribe(
+    input: AudioInput,
+    language: LanguageCode = "zh",
+  ): Promise<TranscriptionResult> {
     if (input.size === 0 || input.data.byteLength === 0) {
       throw new AIProviderError("The uploaded audio file is empty.", 400);
     }
@@ -48,10 +52,9 @@ export class OpenAISpeechTranscriber implements SpeechTranscriber {
 
       const transcription = await client.audio.transcriptions.create({
         file: audioFile,
-        languages: TRANSCRIPTION_LANGUAGES,
+        language: getLanguageProfile(language).transcriptionLanguage,
         model: TRANSCRIPTION_MODEL,
-        prompt:
-          "The speaker is a beginner practicing Mandarin Chinese. Transcribe exactly what they actually say in the language and script they used, even when it is grammatically wrong, semantically wrong, incomplete, unnatural, mixed Mandarin/English, pinyin, or not a good answer to the prompt. Use Chinese characters only for Mandarin words that were actually spoken as Mandarin; do not translate English or pinyin into Chinese characters. Do not infer the intended sentence, do not complete missing words, and do not rewrite the utterance into correct Mandarin. Preserving beginner mistakes is required because those mistakes are what the app teaches from.",
+        prompt: buildTranscriptionPrompt(language),
         response_format: "json",
         temperature: 0,
       });
@@ -60,7 +63,7 @@ export class OpenAISpeechTranscriber implements SpeechTranscriber {
 
       if (!transcript) {
         throw new AIProviderError(
-          "Transcription did not return any speech. Record a short Mandarin answer and try again.",
+          "Transcription did not return any speech. Record a short answer and try again.",
           422,
         );
       }
@@ -79,19 +82,18 @@ export class OpenAISpeechTranscriber implements SpeechTranscriber {
   }
 }
 
-export class OpenAIMandarinEvaluator implements MandarinEvaluator {
+export class OpenAILanguageEvaluator implements LanguageEvaluator {
   async evaluate(input: EvaluationInput): Promise<CorrectnessEvaluation> {
     try {
       const client = getOpenAIClient();
       const response = await client.responses.create({
         model: EVALUATION_MODEL,
         input: buildEvaluationPrompt(input),
-        instructions:
-          "You are a strict but helpful Mandarin coach. Score the user's transcript against the English prompt. Return JSON only.",
+        instructions: `You are a strict but helpful ${getLanguageProfile(input.language).label} coach. Score the user's transcript against the English prompt. Return JSON only.`,
         text: {
           format: {
             type: "json_schema",
-            name: "mandarin_correctness_evaluation",
+            name: "language_correctness_evaluation",
             strict: true,
             schema: evaluationReportSchema,
           },
@@ -100,8 +102,6 @@ export class OpenAIMandarinEvaluator implements MandarinEvaluator {
 
       return parseEvaluationReport(
         response.output_text,
-        input.userTranscript,
-        input.allowedEnglishTokens ?? [],
       );
     } catch (error) {
       if (error instanceof AIProviderError) {
@@ -112,6 +112,8 @@ export class OpenAIMandarinEvaluator implements MandarinEvaluator {
     }
   }
 }
+
+export class OpenAIMandarinEvaluator extends OpenAILanguageEvaluator {}
 
 export function toProviderError(
   error: unknown,
@@ -141,23 +143,24 @@ export function toProviderError(
 }
 
 function buildEvaluationPrompt(input: EvaluationInput) {
+  const profile = getLanguageProfile(input.language);
+
   return JSON.stringify(
     {
-      task: "Evaluate a Mandarin spoken-answer transcript for correctness.",
+      task: `Evaluate a ${profile.label} spoken-answer transcript for correctness.`,
       userTranscript: input.userTranscript,
       englishPrompt: input.englishPrompt,
-      allowedEnglishTokens: input.allowedEnglishTokens ?? [],
       gradingRules: [
         "The user can express the target meaning with wording that differs from any example answer.",
-        "This is a Mandarin speaking exercise, not a translation exercise. Tokens in allowedEnglishTokens are permitted proper names and must not reduce meaning. Do not award meaning credit for any other English words or sentences merely because they translate the prompt. An entirely English answer, aside from allowed proper names, must receive meaningScore 0 and isCorrect false. Return every actual English word in englishTokens, including allowed names but excluding pinyin that represents Mandarin speech. For mixed Mandarin/English answers, reduce meaningScore by at least 15 points per other English word. Other English words cannot receive meaning credit, and two cap meaningScore at 70.",
-        "Award full marks if userTranscript has the same meaning and is grammatically correct Mandarin, even when the wording differs from the example.",
-        "Score meaningScore and grammarScore as 0-100 integers. Return englishTokens as an array containing every actual English word in the transcript, including allowed names but excluding pinyin.",
+        `Award full marks if userTranscript has the same meaning and is grammatically correct ${profile.label}, even when the wording differs from the example.`,
+        "An entirely English answer is not a target-language answer and must receive meaningScore 0 and isCorrect false. Do not translate the transcript into the target language before scoring it.",
+        "Score meaningScore and grammarScore as 0-100 integers.",
         "Score meaningScore and grammarScore independently. Do not let one score mechanically determine, cap, or pull down the other.",
-        "meaningScore measures only whether the user expressed the target meaning. Missing, changed, or incorrect prompt details belong to meaningScore, not grammarScore, when the remaining sentence is grammatical Mandarin.",
-        "grammarScore measures only the grammatical form of the literal transcript: Mandarin word order, sentence structure, required function words and particles, classifier use, aspect/tense markers where the utterance requires them, negation/question placement, and whether the result is syntactically interpretable.",
-        "For grammarScore, ignore whether the answer matches the English prompt. A fluent, grammatical Mandarin sentence that answers the wrong question can score 90-100 for grammar while receiving a low meaningScore.",
-        "Do not penalize grammarScore for vocabulary choice, idiomatic preference, brevity, or omitted prompt details unless they make the actual Mandarin construction ungrammatical or impossible to interpret. Do not penalize pronunciation, tones, recording quality, or punctuation.",
-        "Use this grammarScore calibration: 95-100 = fully well-formed Mandarin with no meaningful grammar error; 85-94 = one minor grammar/word-order/particle issue but clearly well-formed; 70-84 = one noticeable or a few minor grammar errors, yet the sentence structure remains clear; 50-69 = repeated or significant grammar errors that make the sentence awkward or partly unclear; 25-49 = broken word order or missing core grammar that makes much of the utterance hard to parse; 0-24 = isolated words, mostly non-Mandarin, or no interpretable Mandarin sentence structure.",
+        "meaningScore measures only whether the user expressed the target meaning. Missing, changed, or incorrect prompt details belong to meaningScore, not grammarScore, when the remaining sentence is grammatical target-language speech.",
+        `grammarScore measures only the grammatical form of the literal transcript: ${grammarGuidance(profile.code)}`,
+        `For grammarScore, ignore whether the answer matches the English prompt. A fluent, grammatical ${profile.label} sentence that answers the wrong question can score 90-100 for grammar while receiving a low meaningScore.`,
+        "Do not penalize grammarScore for vocabulary choice, idiomatic preference, brevity, or omitted prompt details unless they make the actual target-language construction ungrammatical or impossible to interpret. Do not penalize pronunciation, recording quality, or punctuation.",
+        "Use this grammarScore calibration: 95-100 = fully well-formed with no meaningful grammar error; 85-94 = one minor issue but clearly well-formed; 70-84 = noticeable but understandable errors; 50-69 = repeated or significant errors; 25-49 = much of the utterance is hard to parse; 0-24 = isolated words, mostly non-target-language speech, or no interpretable sentence structure.",
         "When choosing a grammarScore, first classify the transcript into one calibration band, then select a score within that band. Do not use an extreme low score for a single minor error.",
         "Set isCorrect true when the answer would be accepted as correct in a speaking practice exercise.",
         "Do not penalize missing punctuation or minor transcription punctuation differences.",
@@ -168,22 +171,44 @@ function buildEvaluationPrompt(input: EvaluationInput) {
   );
 }
 
+function buildTranscriptionPrompt(language: LanguageCode) {
+  const profile = getLanguageProfile(language);
+  const scriptGuidance =
+    language === "zh"
+      ? "Use Chinese characters only for Mandarin words actually spoken as Mandarin; preserve pinyin and English when they are actually spoken."
+      : language === "ja"
+        ? "Preserve kanji, hiragana, katakana, loanwords, and English exactly as spoken; do not turn an incorrect utterance into correct Japanese."
+        : "Preserve Spanish words, accents, English words, and learner mistakes exactly as spoken; do not translate the utterance into Spanish.";
+
+  return `The speaker is a beginner practicing ${profile.label}. Transcribe exactly what they actually say in the language and script they used, even when it is grammatically wrong, semantically wrong, incomplete, unnatural, mixed-language, or not a good answer to the prompt. ${scriptGuidance} Do not infer the intended sentence, complete missing words, or rewrite the utterance into a correct sentence.`;
+}
+
+function grammarGuidance(language: LanguageCode) {
+  if (language === "zh") {
+    return "Mandarin word order, sentence structure, particles, classifiers, aspect markers, negation, question placement, and whether the result is interpretable";
+  }
+
+  if (language === "ja") {
+    return "Japanese word order, particles, verb forms, tense, negation, counters, politeness, and whether the result is interpretable";
+  }
+
+  return "Spanish word order, conjugation, tense, gender and number agreement, pronoun placement, negation, and whether the result is interpretable";
+}
+
 const evaluationReportSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["isCorrect", "meaningScore", "grammarScore", "englishTokens"],
+  required: ["isTargetLanguage", "isCorrect", "meaningScore", "grammarScore"],
   properties: {
+    isTargetLanguage: { type: "boolean" },
     isCorrect: { type: "boolean" },
     meaningScore: { type: "integer" },
     grammarScore: { type: "integer" },
-    englishTokens: { type: "array", items: { type: "string" } },
   },
 } as const;
 
 function parseEvaluationReport(
   outputText: string,
-  transcript: string,
-  allowedEnglishTokens: string[],
 ): CorrectnessEvaluation {
   let parsed: unknown;
 
@@ -203,40 +228,20 @@ function parseEvaluationReport(
     );
   }
 
-  const englishWordCount = countDisallowedEnglishTokens(
-    parsed.englishTokens,
-    allowedEnglishTokens,
-  );
-
-  const meaningScore = applyEnglishWordPenalty(
-    parsed.meaningScore,
-    englishWordCount,
-  );
+  const meaningScore = parsed.isTargetLanguage ? clampScore(parsed.meaningScore) : 0;
   const grammarScore = clampScore(parsed.grammarScore);
 
   return {
-    isCorrect: parsed.isCorrect && englishWordCount === 0,
+    isCorrect: parsed.isTargetLanguage && parsed.isCorrect,
     overallScore: calculateDeterministicScore([meaningScore, grammarScore]),
     meaningScore,
     grammarScore,
   };
 }
 
-function countDisallowedEnglishTokens(
-  englishTokens: string[],
-  allowedEnglishTokens: string[],
-) {
-  const allowedTokens = new Set(
-    allowedEnglishTokens.map((token) => token.toLocaleLowerCase()),
-  );
-
-  return englishTokens.filter(
-    (token) => !allowedTokens.has(token.toLocaleLowerCase()),
-  ).length;
-}
 function isCorrectnessEvaluation(
   value: unknown,
-): value is CorrectnessEvaluation & { englishTokens: string[] } {
+): value is CorrectnessEvaluation & { isTargetLanguage: boolean } {
   if (!value || typeof value !== "object") {
     return false;
   }
@@ -245,20 +250,10 @@ function isCorrectnessEvaluation(
   const scoreFields = ["meaningScore", "grammarScore"];
 
   return (
+    typeof report.isTargetLanguage === "boolean" &&
     typeof report.isCorrect === "boolean" &&
-    scoreFields.every((field) => Number.isFinite(report[field])) &&
-    Array.isArray(report.englishTokens) &&
-    report.englishTokens.every((token) => typeof token === "string")
+    scoreFields.every((field) => Number.isFinite(report[field]))
   );
-}
-
-function applyEnglishWordPenalty(score: number, englishWordCount: number) {
-  const maximumScore = Math.max(
-    0,
-    100 - Math.max(0, Math.floor(englishWordCount)) * 15,
-  );
-
-  return Math.min(clampScore(score), maximumScore);
 }
 
 export function calculateDeterministicScore(scores: number[]) {

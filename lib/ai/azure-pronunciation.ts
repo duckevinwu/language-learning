@@ -12,10 +12,11 @@ import type {
   PronunciationAssessmentResult,
   PronunciationAssessor,
   PronunciationIssue,
+  LanguageCode,
 } from "./types";
+import { getLanguageProfile } from "@/lib/language";
 
 const AZURE_PROVIDER = "azure-pronunciation-assessment";
-const AZURE_LANGUAGE = "zh-CN";
 const PRONUNCIATION_ISSUE_THRESHOLD = 80;
 const MAX_PRONUNCIATION_ISSUES = 3;
 const hanCharacterPattern = /[\u3400-\u9fff]/u;
@@ -51,6 +52,8 @@ type AzureTiming = {
 };
 
 export class AzurePronunciationAssessor implements PronunciationAssessor {
+  constructor(private readonly language: LanguageCode = "zh") {}
+
   async assess(
     input: PronunciationAssessmentInput,
   ): Promise<PronunciationAssessmentResult> {
@@ -75,7 +78,7 @@ export class AzurePronunciationAssessor implements PronunciationAssessor {
         : convertWavToAzurePcm16Mono(input.audio),
     );
     const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(key, region);
-    speechConfig.speechRecognitionLanguage = AZURE_LANGUAGE;
+    speechConfig.speechRecognitionLanguage = getLanguageProfile(this.language).azureLocale;
     speechConfig.outputFormat = SpeechSDK.OutputFormat.Detailed;
 
     const audioConfig = SpeechSDK.AudioConfig.fromWavFileInput(
@@ -222,7 +225,7 @@ function buildPronunciationIssues(words: AzureWord[]): PronunciationIssue[] {
 
       return { word, wordIndex, text, textOccurrenceIndex, textHanStartIndex };
     })
-    .filter(({ word }) => isUsefulMandarinWordScore(word))
+    .filter(({ word }) => isUsefulWordScore(word))
     .map(({ word, wordIndex, text, textOccurrenceIndex, textHanStartIndex }) => {
       const score = clampScore(word.PronunciationAssessment?.AccuracyScore ?? 0);
       const errorType = word.PronunciationAssessment?.ErrorType;
@@ -247,10 +250,6 @@ function countHanCharacters(text: string) {
   return Array.from(text).filter((character) =>
     hanCharacterPattern.test(character),
   ).length;
-}
-
-function hasHanCharacters(text: string) {
-  return hanCharacterPattern.test(text);
 }
 
 function isFiniteNumber(value: unknown): value is number {
@@ -309,11 +308,11 @@ function readPayloadField(
     : undefined;
 }
 
-function isUsefulMandarinWordScore(word: AzureWord) {
+function isUsefulWordScore(word: AzureWord) {
   const text = word.Word?.trim() ?? "";
   const score = word.PronunciationAssessment?.AccuracyScore;
 
-  return hasHanCharacters(text) && Number.isFinite(score);
+  return text.length > 0 && Number.isFinite(score);
 }
 
 function isAzurePronunciationPayload(

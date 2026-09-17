@@ -1,4 +1,6 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This is a small speaking-practice app for Chinese, Spanish, and Japanese. Each daily session has beginner, intermediate, and advanced prompts. Learners record an answer and receive transcript, meaning, grammar, and pronunciation feedback.
+
+Chinese keeps the existing GPT audio evaluation modes. Spanish and Japanese currently use the standard transcript plus Azure pronunciation path while their audio evaluation quality is validated.
 
 
 ## Environment

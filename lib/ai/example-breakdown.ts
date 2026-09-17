@@ -12,7 +12,7 @@ export const exampleBreakdownSchema = {
       text: {
         type: "string",
         description:
-          "A contiguous Mandarin word or phrase copied exactly from exampleMandarinAnswer.",
+          "A contiguous word or phrase copied exactly from the example answer.",
       },
       definition: {
         type: "string",
@@ -36,13 +36,14 @@ export function normalizeExampleBreakdown(
     }
 
     const text = readRequiredString(part.text);
+    const reading = readOptionalString(part.reading);
     const definition = readRequiredString(part.definition);
 
     if (!text || !definition) {
       return null;
     }
 
-    return { text, definition };
+    return { text, definition, ...(reading ? { reading } : {}) };
   });
 
   if (parts.some((part) => part === null)) {
@@ -53,6 +54,12 @@ export function normalizeExampleBreakdown(
 }
 
 function readRequiredString(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function readOptionalString(value: unknown) {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
     : null;

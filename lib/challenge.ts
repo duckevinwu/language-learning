@@ -1,6 +1,7 @@
 import type {
   Challenge,
   ChallengeDifficulty,
+  LanguageCode,
   PublicChallenge,
   PublicDailyChallenge,
 } from "./ai/types";
@@ -8,9 +9,10 @@ import type {
 type ChallengeSeed = readonly [
   id: string,
   englishPrompt: string,
-  exampleMandarinAnswer: string,
+  exampleAnswer: string,
   category: string,
   notes?: string,
+  exampleReading?: string,
 ];
 
 const challengeSeeds: readonly ChallengeSeed[] = [
@@ -116,6 +118,42 @@ const challengeSeeds: readonly ChallengeSeed[] = [
   ["beginner-100-movie-good", "This movie is very good.", "这部电影很好看。", "small talk"],
 ];
 
+const spanishChallengeSeeds: readonly ChallengeSeed[] = [
+  ["es-beginner-001-greet", "Hello, how are you?", "Hola, ¿cómo estás?", "greetings"],
+  ["es-beginner-002-name", "My name is Kevin.", "Me llamo Kevin.", "greetings"],
+  ["es-beginner-003-thanks", "Thank you very much.", "Muchas gracias.", "greetings"],
+  ["es-beginner-004-coffee", "I would like a coffee, please.", "Quisiera un café, por favor.", "food ordering"],
+  ["es-beginner-005-bathroom", "Where is the bathroom?", "¿Dónde está el baño?", "directions"],
+  ["es-intermediate-001-weekend", "What are you doing this weekend?", "¿Qué vas a hacer este fin de semana?", "scheduling"],
+  ["es-intermediate-002-late", "I will be five minutes late.", "Llegaré cinco minutos tarde.", "scheduling"],
+  ["es-intermediate-003-allergy", "I am allergic to peanuts.", "Soy alérgico a los cacahuetes.", "health"],
+  ["es-intermediate-004-cheaper", "Can you make it a little cheaper?", "¿Puede hacerlo un poco más barato?", "shopping"],
+  ["es-intermediate-005-understand", "I understand the main idea, but I need more details.", "Entiendo la idea principal, pero necesito más detalles.", "work/school"],
+  ["es-advanced-001-reschedule", "Sorry to bother you, but could we move our appointment to Friday?", "Perdona que te moleste, pero ¿podríamos cambiar nuestra cita al viernes?", "scheduling"],
+  ["es-advanced-002-rush-hour", "Taking the train is more reliable during rush hour.", "Tomar el tren es más fiable durante la hora punta.", "transportation"],
+  ["es-advanced-003-delivery", "The app says the food arrived, but I still have not received it.", "La aplicación dice que la comida llegó, pero todavía no la he recibido.", "food ordering"],
+  ["es-advanced-004-weather", "The weather has been changing a lot lately, so bring a jacket.", "El tiempo ha cambiado mucho últimamente, así que lleva una chaqueta.", "small talk"],
+  ["es-advanced-005-reply", "I meant to reply earlier, but I got busy and forgot.", "Pensaba responder antes, pero me ocupé y se me olvidó.", "small talk"],
+];
+
+const japaneseChallengeSeeds: readonly ChallengeSeed[] = [
+  ["ja-beginner-001-greet", "Hello, how are you?", "こんにちは、お元気ですか？", "greetings", undefined, "こんにちは、おげんきですか？"],
+  ["ja-beginner-002-name", "My name is Kevin.", "ケビンと申します。", "greetings", undefined, "けびんともうします。"],
+  ["ja-beginner-003-thanks", "Thank you very much.", "どうもありがとうございます。", "greetings", undefined, "どうもありがとうございます。"],
+  ["ja-beginner-004-coffee", "I would like a coffee, please.", "コーヒーをお願いします。", "food ordering", undefined, "こーひーをおねがいします。"],
+  ["ja-beginner-005-bathroom", "Where is the bathroom?", "トイレはどこですか？", "directions", undefined, "といれはどこですか？"],
+  ["ja-intermediate-001-weekend", "What are you doing this weekend?", "週末は何をしますか？", "scheduling", undefined, "しゅうまつはなにをしますか？"],
+  ["ja-intermediate-002-late", "I will be five minutes late.", "5分遅れます。", "scheduling", undefined, "ごふんおくれます。"],
+  ["ja-intermediate-003-allergy", "I am allergic to peanuts.", "ピーナッツアレルギーがあります。", "health", undefined, "ぴーなっつあれるぎーがあります。"],
+  ["ja-intermediate-004-cheaper", "Can you make it a little cheaper?", "もう少し安くできますか？", "shopping", undefined, "もうすこしやすくできますか？"],
+  ["ja-intermediate-005-understand", "I understand the main idea, but I need more details.", "大体の意味は分かりますが、もっと詳しい説明が必要です。", "work/school", undefined, "だいたいのいみはわかりますが、もっとくわしいせつめいがひつようです。"],
+  ["ja-advanced-001-reschedule", "Sorry to bother you, but could we move our appointment to Friday?", "ご迷惑をおかけしますが、約束を金曜日に変更できますか？", "scheduling", undefined, "ごめいわくをおかけしますが、やくそくをきんようびにへんこうできますか？"],
+  ["ja-advanced-002-rush-hour", "Taking the train is more reliable during rush hour.", "ラッシュアワーは電車のほうが確実です。", "transportation", undefined, "らっしゅあわーはでんしゃのほうがかくじつです。"],
+  ["ja-advanced-003-delivery", "The app says the food arrived, but I still have not received it.", "アプリには料理が届いたと表示されていますが、まだ受け取っていません。", "food ordering", undefined, "あぷりにはりょうりがとどいたとひょうじされていますが、まだうけとっていません。"],
+  ["ja-advanced-004-weather", "The weather has been changing a lot lately, so bring a jacket.", "最近は天気がよく変わるので、上着を持って出かけてください。", "small talk", undefined, "さいきんはてんきがよくかわるので、うわぎをもってでかけてください。"],
+  ["ja-advanced-005-reply", "I meant to reply earlier, but I got busy and forgot.", "早く返信するつもりでしたが、忙しくて忘れてしまいました。", "small talk", undefined, "はやくへんしんするつもりでしたが、いそがしくてわすれてしまいました。"],
+];
+
 const intermediateChallengeSeeds: readonly ChallengeSeed[] = [
   ["intermediate-001-confirm-address","Could you help me check whether this address is correct?","你能帮我确认一下这个地址对不对吗？","directions"],
   ["intermediate-002-forgot-vegetables","I originally planned to cook, but I forgot to buy vegetables.","我本来打算做饭，可是忘了买菜。","home"],
@@ -185,44 +223,57 @@ const advancedChallengeSeeds: readonly ChallengeSeed[] = [
 function buildChallenges(
   seeds: readonly ChallengeSeed[],
   difficulty: ChallengeDifficulty,
+  language: LanguageCode,
 ): Challenge[] {
-  return seeds.map(([id, englishPrompt, exampleMandarinAnswer, category, notes]) => ({
+  return seeds.map(([id, englishPrompt, exampleAnswer, category, notes, exampleReading]) => ({
     id,
+    language,
     englishPrompt,
-    exampleMandarinAnswer,
+    exampleAnswer,
     category,
     difficulty,
     ...(notes ? { notes } : {}),
+    ...(exampleReading ? { exampleReading } : {}),
   }));
 }
 
 export const challenges: Challenge[] = [
-  ...buildChallenges(challengeSeeds, "beginner"),
-  ...buildChallenges(intermediateChallengeSeeds, "intermediate"),
-  ...buildChallenges(advancedChallengeSeeds, "advanced"),
+  ...buildChallenges(challengeSeeds, "beginner", "zh"),
+  ...buildChallenges(intermediateChallengeSeeds, "intermediate", "zh"),
+  ...buildChallenges(advancedChallengeSeeds, "advanced", "zh"),
+  ...buildChallenges(spanishChallengeSeeds.slice(0, 5), "beginner", "es"),
+  ...buildChallenges(spanishChallengeSeeds.slice(5, 10), "intermediate", "es"),
+  ...buildChallenges(spanishChallengeSeeds.slice(10), "advanced", "es"),
+  ...buildChallenges(japaneseChallengeSeeds.slice(0, 5), "beginner", "ja"),
+  ...buildChallenges(japaneseChallengeSeeds.slice(5, 10), "intermediate", "ja"),
+  ...buildChallenges(japaneseChallengeSeeds.slice(10), "advanced", "ja"),
 ];
 
-export function getRandomChallenge(): Challenge {
-  return challenges[Math.floor(Math.random() * challenges.length)];
+export function getRandomChallenge(language: LanguageCode = "zh"): Challenge {
+  const matchingChallenges = challenges.filter((challenge) => challenge.language === language);
+
+  return matchingChallenges[Math.floor(Math.random() * matchingChallenges.length)];
 }
 
 export function getRandomChallengeByDifficulty(
   difficulty: ChallengeDifficulty,
+  language: LanguageCode = "zh",
 ): Challenge {
   const matchingChallenges = challenges.filter(
-    (challenge) => challenge.difficulty === difficulty,
+    (challenge) => challenge.difficulty === difficulty && challenge.language === language,
   );
 
   return matchingChallenges[Math.floor(Math.random() * matchingChallenges.length)];
 }
 
-export function getRandomDailyChallenge(): PublicDailyChallenge {
+export function getRandomDailyChallenge(language: LanguageCode = "zh"): PublicDailyChallenge {
   return {
     id: `day-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    language,
     challenges: [
-      toPublicChallenge(getRandomChallengeByDifficulty("beginner")),
-      toPublicChallenge(getRandomChallengeByDifficulty("intermediate")),
-      toPublicChallenge(getRandomChallengeByDifficulty("advanced")),
+      toPublicChallenge(getRandomChallengeByDifficulty("beginner", language)),
+      toPublicChallenge(getRandomChallengeByDifficulty("intermediate", language)),
+      toPublicChallenge(getRandomChallengeByDifficulty("advanced", language)),
     ],
   };
 }
@@ -234,10 +285,12 @@ export function getChallengeById(id: string): Challenge | undefined {
 export function toPublicChallenge(challenge: Challenge): PublicChallenge {
   return {
     id: challenge.id,
+    language: challenge.language,
     englishPrompt: challenge.englishPrompt,
     category: challenge.category,
     difficulty: challenge.difficulty,
-    exampleAnswer: challenge.exampleMandarinAnswer,
+    exampleAnswer: challenge.exampleAnswer,
+    ...(challenge.exampleReading ? { exampleReading: challenge.exampleReading } : {}),
     ...(challenge.notes ? { notes: challenge.notes } : {}),
   };
 }

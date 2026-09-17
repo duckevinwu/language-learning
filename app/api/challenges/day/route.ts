@@ -4,6 +4,7 @@ import {
   rejectDisallowedOrigin,
 } from "@/lib/api/cors";
 import { getRandomDailyChallenge } from "@/lib/challenge";
+import { isLanguageCode } from "@/lib/language";
 
 export async function GET(request: Request) {
   const forbidden = rejectDisallowedOrigin(request);
@@ -12,7 +13,15 @@ export async function GET(request: Request) {
     return forbidden;
   }
 
-  return jsonWithCors(request, getRandomDailyChallenge(), {
+  const requestedLanguage = new URL(request.url).searchParams.get("language");
+
+  if (requestedLanguage !== null && !isLanguageCode(requestedLanguage)) {
+    return jsonWithCors(request, { error: "Unsupported language." }, { status: 400 });
+  }
+
+  const language = requestedLanguage ?? "zh";
+
+  return jsonWithCors(request, getRandomDailyChallenge(language), {
     headers: {
       "Cache-Control": "no-store",
     },

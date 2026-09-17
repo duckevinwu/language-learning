@@ -158,7 +158,7 @@ export class OpenAIGptAudioMandarinEvaluator implements AudioMandarinEvaluator {
       return parseTranscriptGroundedAudioScores(
         toolCall.function.arguments,
         input.authoritativeTranscript,
-        getAllowedEnglishTokens(input.challenge.exampleMandarinAnswer),
+        getAllowedEnglishTokens(input.challenge.exampleAnswer),
       );
     } catch (error) {
       if (error instanceof AIProviderError) {
@@ -281,7 +281,7 @@ function buildAudioEvaluationPrompt(
     {
       task: "Evaluate a completed Mandarin spoken-answer recording.",
       englishPrompt: challenge.englishPrompt,
-      exampleMandarinAnswer: challenge.exampleMandarinAnswer,
+      exampleAnswer: challenge.exampleAnswer,
       ...(authoritativeTranscript
         ? {
             authoritativeTranscript,
@@ -292,7 +292,7 @@ function buildAudioEvaluationPrompt(
       gradingRules: [
         "The speaker is a beginner. Beginner mistakes are expected and must be preserved in transcript because they are the evidence used for learning.",
         "Listen to the audio directly; do not assume the learner said the example answer or any ideal answer.",
-        "First transcribe the learner literally, then evaluate that transcript against the English prompt. Never use the exampleMandarinAnswer to fill in words, modifiers, or meaning that are missing from the audio.",
+        "First transcribe the learner literally, then evaluate that transcript against the English prompt. Never use the exampleAnswer to fill in words, modifiers, or meaning that are missing from the audio.",
         "Transcribe exactly what the learner says in the language and script they used, even if it is grammatically wrong, semantically wrong, incomplete, unnatural, mixed Mandarin/English, pinyin, or not a good answer to the prompt.",
         "Use Chinese characters only for Mandarin words actually spoken as Mandarin. Do not translate English into Mandarin, and do not convert pinyin into Chinese characters unless the spoken word is clearly Mandarin speech rather than a spelling/reading attempt.",
         "Do not silently repair, normalize, complete, predict, or reinterpret a broken utterance into a good Mandarin sentence.",
@@ -300,7 +300,7 @@ function buildAudioEvaluationPrompt(
         "Grade only the actual spoken content in transcript. A few correct characters or words are not enough for a high score if the full prompt meaning is missing.",
         "This is a Mandarin speaking exercise, not a translation exercise. Never award meaning credit for English merely because it translates the prompt: an entirely English answer must have isCorrect false and meaningScore 0. Count every English word in englishWordCount; do not count pinyin that represents Mandarin speech. For a mixed Mandarin/English answer, reduce meaningScore by at least 15 points per English word. English words cannot receive meaning credit, and two English words cap meaningScore at 70.",
         "If they mostly did not speak Mandarin, transcribe what you can and score correctness very low.",
-        "The exampleMandarinAnswer is only one correct example, not the only valid answer.",
+        "The exampleAnswer is only one correct example, not the only valid answer.",
         "Award full meaning marks only if the spoken answer expresses all essential parts of the English prompt, even when wording differs from the example.",
         "Before scoring, identify the English prompt's essential meaning slots: who/subject, action or state, object/complement, direction, location, time/aspect, negation, question intent, quantity, and any modifier or politeness requirement that changes the requested meaning.",
         "Compare the transcript slot by slot with the English prompt. Equivalent Mandarin wording is fine, but each required slot must be present in what the learner actually said.",
@@ -398,7 +398,7 @@ function parseAudioEvaluationReport(
     grammarScore: clampScore(parsed.grammarScore),
     naturalnessScore: clampScore(parsed.naturalnessScore),
     pronunciationScore: clampScore(parsed.pronunciationScore),
-    toneScore: clampScore(parsed.toneScore),
+    toneScore: clampScore(parsed.toneScore ?? 0),
     pronunciationNeedsWork,
     ...(pronunciationFeedback ? { pronunciationFeedback } : {}),
     pronunciationProvider: GPT_AUDIO_EVALUATION_MODEL,
@@ -423,7 +423,7 @@ function buildTranscriptGroundedAudioPrompt(
     authoritativeTranscript: input.authoritativeTranscript,
     englishPrompt: input.challenge.englishPrompt,
     allowedEnglishTokens: getAllowedEnglishTokens(
-      input.challenge.exampleMandarinAnswer,
+      input.challenge.exampleAnswer,
     ),
     rules: [
       "Treat authoritativeTranscript as the exact, immutable record of what was said.",
@@ -490,7 +490,7 @@ function parseTranscriptGroundedAudioScores(
     meaningScore,
     grammarScore,
     pronunciationScore: clampScore(parsed.pronunciationScore),
-    toneScore: clampScore(parsed.toneScore),
+    toneScore: clampScore(parsed.toneScore ?? 0),
     pronunciationNeedsWork: false,
     pronunciationProvider: GPT_AUDIO_EVALUATION_MODEL,
   };
