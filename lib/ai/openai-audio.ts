@@ -10,9 +10,11 @@ import {
 import type {
   AudioCorrectnessEvaluation,
   AudioEvaluationInput,
-  AudioMandarinEvaluator,
+  AudioLanguageEvaluator,
   Challenge,
+  LanguageCode,
 } from "./types";
+import { getLanguageProfile } from "@/lib/language";
 
 type ParsedAudioCorrectnessEvaluation = AudioCorrectnessEvaluation & {
   naturalnessScore: number;
@@ -21,7 +23,7 @@ type ParsedAudioCorrectnessEvaluation = AudioCorrectnessEvaluation & {
 
 const GPT_AUDIO_EVALUATION_MODEL = "gpt-audio-1.5";
 
-export class OpenAIGptAudioMandarinEvaluator implements AudioMandarinEvaluator {
+export class OpenAIGptAudioEvaluator implements AudioLanguageEvaluator {
   async evaluate(
     input: AudioEvaluationInput,
   ): Promise<AudioCorrectnessEvaluation> {
@@ -118,7 +120,7 @@ export class OpenAIGptAudioMandarinEvaluator implements AudioMandarinEvaluator {
           {
             role: "system",
             content:
-              "You evaluate a Mandarin learner recording. The supplied transcript is immutable ground truth for correctness. Use audio only for pronunciation and tone scores. Return the requested scores only.",
+              `You evaluate a ${getLanguageProfile(input.challenge.language).label} learner recording. The supplied transcript is immutable ground truth for correctness. Use audio only for pronunciation${getLanguageProfile(input.challenge.language).supportsToneScore ? " and tone" : ""} scores. Return the requested scores only.`,
           },
           {
             role: "user",
@@ -159,6 +161,7 @@ export class OpenAIGptAudioMandarinEvaluator implements AudioMandarinEvaluator {
         toolCall.function.arguments,
         input.authoritativeTranscript,
         getAllowedEnglishTokens(input.challenge.exampleAnswer),
+        input.challenge.language,
       );
     } catch (error) {
       if (error instanceof AIProviderError) {
@@ -418,8 +421,21 @@ function getAllowedEnglishTokens(exampleMandarinAnswer: string) {
 function buildTranscriptGroundedAudioPrompt(
   input: AudioEvaluationInput & { authoritativeTranscript: string },
 ) {
+  const profile = getLanguageProfile(input.challenge.language);
+  const languageRules =
+    profile.code === "zh"
+      ? "Use Chinese characters only for Mandarin words actually spoken as Mandarin. Do not translate English into Mandarin, and do not convert pinyin into Chinese characters unless the spoken word is clearly Mandarin speech rather than a spelling/reading attempt."
+      : profile.code === "ja"
+        ? "Preserve Japanese words and the script actually used, including kanji, hiragana, katakana, loanwords, and English. Do not translate English into Japanese or repair incorrect Japanese."
+        : "Preserve Spanish words, accents, English words, and learner mistakes exactly as spoken. Do not translate English into Spanish or repair incorrect Spanish.";
+  const grammarRules =
+    profile.code === "zh"
+      ? "Mandarin word order, sentence structure, particles, classifiers, aspect markers, negation, question placement, and whether the result is interpretable"
+      : profile.code === "ja"
+        ? "Japanese word order, particles, verb forms, tense, negation, counters, politeness, and whether the result is interpretable"
+        : "Spanish word order, conjugation, tense, gender and number agreement, pronoun placement, negation, and whether the result is interpretable";
   return JSON.stringify({
-    task: "Score a Mandarin learner recording.",
+    task: `Score a ${profile.label} learner recording.`,
     authoritativeTranscript: input.authoritativeTranscript,
     englishPrompt: input.challenge.englishPrompt,
     allowedEnglishTokens: getAllowedEnglishTokens(
@@ -429,21 +445,30 @@ function buildTranscriptGroundedAudioPrompt(
       "Treat authoritativeTranscript as the exact, immutable record of what was said.",
       "Determine isCorrect, meaningScore, grammarScore, and englishTokens only from authoritativeTranscript. Never repair, infer, translate, or reinterpret it from the audio.",
       "The user can express the target meaning with wording that differs from any example answer.",
-      "This is a Mandarin speaking exercise, not a translation exercise. Tokens in allowedEnglishTokens are permitted proper names and must not count as English words or reduce meaning. Do not award meaning credit for any other English words or sentences merely because they translate the prompt. An entirely English answer, aside from allowed proper names, must receive meaningScore 0 and isCorrect false. Return every actual English word in englishTokens, including allowed names but excluding pinyin that represents Mandarin speech. For mixed Mandarin/English answers, reduce meaningScore by at least 15 points per other English word. Other English words cannot receive meaning credit, and two cap meaningScore at 70.",
-      "Award full marks if authoritativeTranscript has the same meaning and is grammatically correct Mandarin, even when wording differs from any example answer.",
+      `This is a ${profile.label} speaking exercise, not a translation exercise. Tokens in allowedEnglishTokens are permitted proper names and must not count as English words or reduce meaning. Do not award meaning credit for other English words or sentences merely because they translate the prompt. An entirely English answer, aside from allowed proper names, must receive meaningScore 0 and isCorrect false. Return every actual English word in englishTokens, including allowed names. For mixed target-language/English answers, reduce meaningScore by at least 15 points per other English word. Other English words cannot receive meaning credit, and two cap meaningScore at 70.`,
+      `Award full marks if authoritativeTranscript has the same meaning and is grammatically correct ${profile.label}, even when wording differs from any example answer.`,
       "Score meaningScore and grammarScore as 0-100 integers. Return englishTokens as an array.",
       "Score meaningScore and grammarScore independently. Do not let one score mechanically determine, cap, or pull down another.",
-      "meaningScore measures only whether the learner expressed the target meaning. Missing, changed, or incorrect prompt details belong to meaningScore, not grammarScore, when the remaining sentence is grammatical Mandarin.",
-      "grammarScore measures only the grammatical form of authoritativeTranscript: Mandarin word order, sentence structure, required function words and particles, classifier use, aspect/tense markers where the utterance requires them, negation/question placement, and whether the result is syntactically interpretable.",
-      "For grammarScore, ignore whether the answer matches the English prompt. A fluent, grammatical Mandarin sentence that answers the wrong question can score 90-100 for grammar while receiving a low meaningScore.",
-      "Do not penalize grammarScore for vocabulary choice, idiomatic preference, brevity, or omitted prompt details unless they make the actual Mandarin construction ungrammatical or impossible to interpret. Do not penalize pronunciation, tones, recording quality, or punctuation.",
-      "Use this grammarScore calibration: 95-100 = fully well-formed Mandarin with no meaningful grammar error; 85-94 = one minor grammar/word-order/particle issue but clearly well-formed; 70-84 = one noticeable or a few minor grammar errors, yet the sentence structure remains clear; 50-69 = repeated or significant grammar errors that make the sentence awkward or partly unclear; 25-49 = broken word order or missing core grammar that makes much of the utterance hard to parse; 0-24 = isolated words, mostly non-Mandarin, or no interpretable Mandarin sentence structure.",
+      "meaningScore measures only whether the learner expressed the target meaning. Missing, changed, or incorrect prompt details belong to meaningScore, not grammarScore, when the remaining sentence is grammatical target-language speech.",
+      `grammarScore measures only the grammatical form of authoritativeTranscript: ${grammarRules}.`,
+      `For grammarScore, ignore whether the answer matches the English prompt. A fluent, grammatical ${profile.label} sentence that answers the wrong question can score 90-100 for grammar while receiving a low meaningScore.`,
+      `Do not penalize grammarScore for vocabulary choice, idiomatic preference, brevity, or omitted prompt details unless they make the actual ${profile.label} construction ungrammatical or impossible to interpret. Do not penalize pronunciation, recording quality, or punctuation.`,
+      `Use this grammarScore calibration: 95-100 = fully well-formed ${profile.label} with no meaningful grammar error; 85-94 = one minor issue but clearly well-formed; 70-84 = noticeable but understandable errors; 50-69 = repeated or significant errors; 25-49 = much of the utterance is hard to parse; 0-24 = isolated words, mostly non-target-language speech, or no interpretable sentence structure.`,
       "When choosing a grammarScore, first classify the transcript into one calibration band, then select a score within that band. Do not use an extreme low score for a single minor error.",
       "Set isCorrect true when the answer would be accepted as correct in a speaking practice exercise.",
       "Do not penalize missing punctuation or minor transcription punctuation differences.",
-      "Use audio only for pronunciationScore and toneScore. Pronunciation/tone calibration: 95-100 = accurate and natural; 85-94 = strong with only minor accent or uncertainty; 70-84 = understandable but with at least one noticeable issue; 50-69 = repeated or meaning-risking issues; below 50 = hard to understand or many wrong tones.",
-      "If any syllable has a clear wrong tone category, cap toneScore at 79. If multiple syllables have clear wrong tone categories, cap toneScore at 69. If tones are mostly flat or missing, cap toneScore at 74.",
-      "If an initial, final, or rhythm issue makes a syllable sound like a different Mandarin syllable, cap pronunciationScore at 79. If this happens repeatedly, cap pronunciationScore at 69.",
+      `Use audio only for pronunciationScore${profile.supportsToneScore ? " and toneScore" : ""}. Pronunciation calibration: 95-100 = accurate and natural; 85-94 = strong with only minor accent or uncertainty; 70-84 = understandable but with at least one noticeable issue; 50-69 = repeated or meaning-risking issues; below 50 = hard to understand or many pronunciation issues.`,
+      ...(profile.supportsToneScore
+        ? [
+            "If any syllable has a clear wrong tone category, cap toneScore at 79. If multiple syllables have clear wrong tone categories, cap toneScore at 69. If tones are mostly flat or missing, cap toneScore at 74.",
+          ]
+        : ["Tones are not applicable to this language; return toneScore as 100 for schema compatibility, and do not use it in learner feedback."]),
+      languageRules,
+      ...(profile.supportsToneScore
+        ? [
+            "If an initial, final, or rhythm issue makes a syllable sound like a different Mandarin syllable, cap pronunciationScore at 79. If this happens repeatedly, cap pronunciationScore at 69.",
+          ]
+        : []),
       "Return only the requested structured fields. Do not generate a transcript, explanation, feedback, issue list, or advice.",
     ],
   });
@@ -453,6 +478,7 @@ function parseTranscriptGroundedAudioScores(
   outputText: string,
   transcript: string,
   allowedEnglishTokens: string[],
+  language: LanguageCode,
 ): AudioCorrectnessEvaluation {
   let parsed: unknown;
 
@@ -476,8 +502,11 @@ function parseTranscriptGroundedAudioScores(
     parsed.englishTokens,
     allowedEnglishTokens,
   );
-  const isMandarinResponse = /\p{Script=Han}/u.test(transcript);
-  const meaningScore = isMandarinResponse
+  const isTargetLanguageResponse = isLikelyTargetLanguageTranscript(
+    transcript,
+    language,
+  );
+  const meaningScore = isTargetLanguageResponse
     ? applyEnglishWordPenalty(parsed.meaningScore, englishWordCount)
     : 0;
   const grammarScore = clampScore(parsed.grammarScore);
@@ -485,15 +514,36 @@ function parseTranscriptGroundedAudioScores(
   return {
     transcript,
     isCorrect:
-      isMandarinResponse && parsed.isCorrect && englishWordCount === 0,
+      isTargetLanguageResponse && parsed.isCorrect && englishWordCount === 0,
     overallScore: calculateDeterministicScore([meaningScore, grammarScore]),
     meaningScore,
     grammarScore,
     pronunciationScore: clampScore(parsed.pronunciationScore),
-    toneScore: clampScore(parsed.toneScore ?? 0),
+    ...(getLanguageProfile(language).supportsToneScore
+      ? { toneScore: clampScore(parsed.toneScore ?? 0) }
+      : {}),
     pronunciationNeedsWork: false,
     pronunciationProvider: GPT_AUDIO_EVALUATION_MODEL,
   };
+}
+
+function isLikelyTargetLanguageTranscript(
+  transcript: string,
+  language: LanguageCode,
+) {
+  if (language === "zh") {
+    return /\p{Script=Han}/u.test(transcript);
+  }
+
+  if (language === "ja") {
+    return /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(
+      transcript,
+    );
+  }
+
+  return /\b(?:a|al|de|del|el|ella|en|es|estoy|hola|la|las|le|los|me|mi|mis|para|por|que|se|soy|su|te|tu|un|una|y|yo)\b/iu.test(
+      transcript,
+    );
 }
 
 function countDisallowedEnglishTokens(

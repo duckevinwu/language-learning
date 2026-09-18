@@ -7,7 +7,7 @@ import { AIProviderError } from "@/lib/ai/errors";
 import { getStaticExampleBreakdown } from "@/lib/ai/example-breakdown-store";
 import { calculateDeterministicScore } from "@/lib/ai/openai";
 import {
-  getAudioMandarinEvaluator,
+  getAudioLanguageEvaluator,
   getLanguageEvaluator,
   getPronunciationAssessor,
   getSpeechTranscriber,
@@ -162,7 +162,7 @@ export async function POST(request: Request) {
     }
 
     if (evaluationMode === "gpt-audio") {
-      const evaluator = getAudioMandarinEvaluator();
+      const evaluator = getAudioLanguageEvaluator();
       const audioCorrectness = await measureAsync(
         timings,
         "server:gptAudioEvaluation",
@@ -200,7 +200,7 @@ export async function POST(request: Request) {
     );
 
     if (evaluationMode === "transcript-gpt-audio") {
-      const evaluator = getAudioMandarinEvaluator();
+      const evaluator = getAudioLanguageEvaluator();
       const audioCorrectness = await measureAsync(
         timings,
         "server:transcriptGroundedGptAudioEvaluation",

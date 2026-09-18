@@ -1,11 +1,11 @@
 This is a small speaking-practice app for Chinese, Spanish, and Japanese. Each daily session has beginner, intermediate, and advanced prompts. Learners record an answer and receive transcript, meaning, grammar, and pronunciation feedback.
 
-Chinese keeps the existing GPT audio evaluation modes. Spanish and Japanese currently use the standard transcript plus Azure pronunciation path while their audio evaluation quality is validated.
+All three languages default to transcript-grounded GPT-audio evaluation. The standard transcript plus Azure pronunciation path remains available as a fallback.
 
 
 ## Environment
 
-Standard speech evaluation uses OpenAI for transcription and correctness, plus Azure Speech Pronunciation Assessment for pronunciation scoring. Configure these server-side variables before running the app:
+The default transcript-grounded GPT-audio evaluation uses OpenAI for transcription, correctness, and audio pronunciation scoring. The optional standard mode uses OpenAI for transcription and correctness plus Azure Speech Pronunciation Assessment for pronunciation scoring. Configure these server-side variables before using the standard mode:
 
 ```bash
 OPENAI_API_KEY=...

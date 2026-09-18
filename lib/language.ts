@@ -29,7 +29,7 @@ const languageProfiles: Record<LanguageCode, LanguageProfile> = {
     transcriptionLanguage: "es",
     speechSynthesisLanguage: "es-MX",
     supportsToneScore: false,
-    evaluationModes: ["standard"],
+    evaluationModes: ["transcript-gpt-audio", "standard"],
   },
   ja: {
     code: "ja",
@@ -39,7 +39,7 @@ const languageProfiles: Record<LanguageCode, LanguageProfile> = {
     speechSynthesisLanguage: "ja-JP",
     readingLabel: "Hiragana",
     supportsToneScore: false,
-    evaluationModes: ["standard"],
+    evaluationModes: ["transcript-gpt-audio", "standard"],
   },
 };
 

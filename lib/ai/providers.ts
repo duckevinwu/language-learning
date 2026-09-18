@@ -1,8 +1,8 @@
 import { AzurePronunciationAssessor } from "./azure-pronunciation";
-import { OpenAIGptAudioMandarinEvaluator } from "./openai-audio";
+import { OpenAIGptAudioEvaluator } from "./openai-audio";
 import { OpenAILanguageEvaluator, OpenAISpeechTranscriber } from "./openai";
 import type {
-  AudioMandarinEvaluator,
+  AudioLanguageEvaluator,
   LanguageEvaluator,
   LanguageCode,
   PronunciationAssessor,
@@ -17,8 +17,8 @@ export function getLanguageEvaluator(): LanguageEvaluator {
   return new OpenAILanguageEvaluator();
 }
 
-export function getAudioMandarinEvaluator(): AudioMandarinEvaluator {
-  return new OpenAIGptAudioMandarinEvaluator();
+export function getAudioLanguageEvaluator(): AudioLanguageEvaluator {
+  return new OpenAIGptAudioEvaluator();
 }
 
 export function getPronunciationAssessor(language: LanguageCode): PronunciationAssessor {
