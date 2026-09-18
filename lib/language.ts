@@ -37,7 +37,7 @@ const languageProfiles: Record<LanguageCode, LanguageProfile> = {
     azureLocale: "ja-JP",
     transcriptionLanguage: "ja",
     speechSynthesisLanguage: "ja-JP",
-    readingLabel: "Hiragana",
+    readingLabel: "Romaji",
     supportsToneScore: false,
     evaluationModes: ["transcript-gpt-audio", "standard"],
   },

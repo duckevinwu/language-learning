@@ -137,21 +137,21 @@ const spanishChallengeSeeds: readonly ChallengeSeed[] = [
 ];
 
 const japaneseChallengeSeeds: readonly ChallengeSeed[] = [
-  ["ja-beginner-001-greet", "Hello, how are you?", "こんにちは、お元気ですか？", "greetings", undefined, "こんにちは、おげんきですか？"],
-  ["ja-beginner-002-name", "My name is Kevin.", "ケビンと申します。", "greetings", undefined, "けびんともうします。"],
-  ["ja-beginner-003-thanks", "Thank you very much.", "どうもありがとうございます。", "greetings", undefined, "どうもありがとうございます。"],
-  ["ja-beginner-004-coffee", "I would like a coffee, please.", "コーヒーをお願いします。", "food ordering", undefined, "こーひーをおねがいします。"],
-  ["ja-beginner-005-bathroom", "Where is the bathroom?", "トイレはどこですか？", "directions", undefined, "といれはどこですか？"],
-  ["ja-intermediate-001-weekend", "What are you doing this weekend?", "週末は何をしますか？", "scheduling", undefined, "しゅうまつはなにをしますか？"],
-  ["ja-intermediate-002-late", "I will be five minutes late.", "5分遅れます。", "scheduling", undefined, "ごふんおくれます。"],
-  ["ja-intermediate-003-allergy", "I am allergic to peanuts.", "ピーナッツアレルギーがあります。", "health", undefined, "ぴーなっつあれるぎーがあります。"],
-  ["ja-intermediate-004-cheaper", "Can you make it a little cheaper?", "もう少し安くできますか？", "shopping", undefined, "もうすこしやすくできますか？"],
-  ["ja-intermediate-005-understand", "I understand the main idea, but I need more details.", "大体の意味は分かりますが、もっと詳しい説明が必要です。", "work/school", undefined, "だいたいのいみはわかりますが、もっとくわしいせつめいがひつようです。"],
-  ["ja-advanced-001-reschedule", "Sorry to bother you, but could we move our appointment to Friday?", "ご迷惑をおかけしますが、約束を金曜日に変更できますか？", "scheduling", undefined, "ごめいわくをおかけしますが、やくそくをきんようびにへんこうできますか？"],
-  ["ja-advanced-002-rush-hour", "Taking the train is more reliable during rush hour.", "ラッシュアワーは電車のほうが確実です。", "transportation", undefined, "らっしゅあわーはでんしゃのほうがかくじつです。"],
-  ["ja-advanced-003-delivery", "The app says the food arrived, but I still have not received it.", "アプリには料理が届いたと表示されていますが、まだ受け取っていません。", "food ordering", undefined, "あぷりにはりょうりがとどいたとひょうじされていますが、まだうけとっていません。"],
-  ["ja-advanced-004-weather", "The weather has been changing a lot lately, so bring a jacket.", "最近は天気がよく変わるので、上着を持って出かけてください。", "small talk", undefined, "さいきんはてんきがよくかわるので、うわぎをもってでかけてください。"],
-  ["ja-advanced-005-reply", "I meant to reply earlier, but I got busy and forgot.", "早く返信するつもりでしたが、忙しくて忘れてしまいました。", "small talk", undefined, "はやくへんしんするつもりでしたが、いそがしくてわすれてしまいました。"],
+  ["ja-beginner-001-greet", "Hello, how are you?", "こんにちは、お元気ですか？", "greetings", undefined, "konnichiwa, ogenki desu ka?"],
+  ["ja-beginner-002-name", "My name is Kevin.", "ケビンと申します。", "greetings", undefined, "kebin to moushimasu."],
+  ["ja-beginner-003-thanks", "Thank you very much.", "どうもありがとうございます。", "greetings", undefined, "doumo arigatou gozaimasu."],
+  ["ja-beginner-004-coffee", "I would like a coffee, please.", "コーヒーをお願いします。", "food ordering", undefined, "koohii o onegaishimasu."],
+  ["ja-beginner-005-bathroom", "Where is the bathroom?", "トイレはどこですか？", "directions", undefined, "toire wa doko desu ka?"],
+  ["ja-intermediate-001-weekend", "What are you doing this weekend?", "週末は何をしますか？", "scheduling", undefined, "shuumatsu wa nani o shimasu ka?"],
+  ["ja-intermediate-002-late", "I will be five minutes late.", "5分遅れます。", "scheduling", undefined, "gofun okuremasu."],
+  ["ja-intermediate-003-allergy", "I am allergic to peanuts.", "ピーナッツアレルギーがあります。", "health", undefined, "piinattsu arerugii ga arimasu."],
+  ["ja-intermediate-004-cheaper", "Can you make it a little cheaper?", "もう少し安くできますか？", "shopping", undefined, "mou sukoshi yasuku dekimasu ka?"],
+  ["ja-intermediate-005-understand", "I understand the main idea, but I need more details.", "大体の意味は分かりますが、もっと詳しい説明が必要です。", "work/school", undefined, "daitai no imi wa wakarimasu ga, motto kuwashii setsumei ga hitsuyou desu."],
+  ["ja-advanced-001-reschedule", "Sorry to bother you, but could we move our appointment to Friday?", "ご迷惑をおかけしますが、約束を金曜日に変更できますか？", "scheduling", undefined, "gomeiwaku o okake shimasu ga, yakusoku o kinyoubi ni henkou dekimasu ka?"],
+  ["ja-advanced-002-rush-hour", "Taking the train is more reliable during rush hour.", "ラッシュアワーは電車のほうが確実です。", "transportation", undefined, "rasshuawaa wa densha no hou ga kakujitsu desu."],
+  ["ja-advanced-003-delivery", "The app says the food arrived, but I still have not received it.", "アプリには料理が届いたと表示されていますが、まだ受け取っていません。", "food ordering", undefined, "apuri ni wa ryouri ga todoita to hyouji sareteimasu ga, mada uketotte imasen."],
+  ["ja-advanced-004-weather", "The weather has been changing a lot lately, so bring a jacket.", "最近は天気がよく変わるので、上着を持って出かけてください。", "small talk", undefined, "saikin wa tenki ga yoku kawaru node, uwagi o motte dekakete kudasai."],
+  ["ja-advanced-005-reply", "I meant to reply earlier, but I got busy and forgot.", "早く返信するつもりでしたが、忙しくて忘れてしまいました。", "small talk", undefined, "hayaku henshin suru tsumori deshita ga, isogashikute wasurete shimaimashita."],
 ];
 
 const intermediateChallengeSeeds: readonly ChallengeSeed[] = [
