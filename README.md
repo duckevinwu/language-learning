@@ -27,6 +27,22 @@ INCLUDE_DEBUG_TIMINGS=false
 
 `MAX_AUDIO_UPLOAD_BYTES` limits uploaded audio size and defaults to `5000000`. `INCLUDE_DEBUG_TIMINGS=true` includes server timing details in production responses; timings are included automatically outside production.
 
+To run the standard-evaluation smoke check against a local or deployed API,
+provide one short spoken WAV fixture per language:
+
+```bash
+SMOKE_BASE_URL=https://your-app.vercel.app \
+SMOKE_ORIGIN=http://localhost:3001 \
+SMOKE_ZH_AUDIO=/path/to/chinese.wav \
+SMOKE_ES_AUDIO=/path/to/spanish.wav \
+SMOKE_JA_AUDIO=/path/to/japanese.wav \
+node scripts/smoke-standard-evaluation.mjs
+```
+
+The check validates all three standard reports, invalid-mode and empty-audio
+responses, and CORS behavior when `SMOKE_ORIGIN` is set. It uses real provider
+credentials and may incur provider usage.
+
 Before deployment, rotate provider keys and configure secrets through Vercel or provider environment variables. Do not commit deployed credentials in local env files.
 
 ## Getting Started

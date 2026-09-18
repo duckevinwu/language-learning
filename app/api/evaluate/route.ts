@@ -189,10 +189,14 @@ export async function POST(request: Request) {
     }
 
     const transcriber = getSpeechTranscriber();
-    const transcription = await measureAsync(
-      timings,
-      "server:transcription",
-      () => transcriber.transcribe(audioInput, challenge.language),
+    const transcription = await runStandardProvider(
+      "openai-transcription",
+      () =>
+        measureAsync(
+          timings,
+          "server:transcription",
+          () => transcriber.transcribe(audioInput, challenge.language),
+        ),
     );
 
     if (evaluationMode === "transcript-gpt-audio") {
@@ -227,18 +231,22 @@ export async function POST(request: Request) {
     const pronunciationAssessor = getPronunciationAssessor(challenge.language);
     const parallelStartedAt = performance.now();
     const [correctness, pronunciation] = await Promise.all([
-      measureAsync(timings, "server:correctnessEvaluation", () =>
-        evaluator.evaluate({
-          userTranscript: transcription.transcript,
-          englishPrompt: challenge.englishPrompt,
-          language: challenge.language,
-        }),
+      runStandardProvider("openai-correctness", () =>
+        measureAsync(timings, "server:correctnessEvaluation", () =>
+          evaluator.evaluate({
+            userTranscript: transcription.transcript,
+            englishPrompt: challenge.englishPrompt,
+            language: challenge.language,
+          }),
+        ),
       ),
-      measureAsync(timings, "server:pronunciationAssessment", () =>
-        pronunciationAssessor.assess({
-          audio: audioInput,
-          referenceText: transcription.transcript,
-        }),
+      runStandardProvider("azure-pronunciation", () =>
+        measureAsync(timings, "server:pronunciationAssessment", () =>
+          pronunciationAssessor.assess({
+            audio: audioInput,
+            referenceText: transcription.transcript,
+          }),
+        ),
       ),
     ]);
     recordTiming(timings, "server:parallelEvaluation", parallelStartedAt);
@@ -442,6 +450,30 @@ function normalizeUpstreamErrorStatus(status: number) {
 
 function roundDuration(durationMs: number) {
   return Math.round(durationMs * 10) / 10;
+}
+
+type StandardProviderStage =
+  | "openai-transcription"
+  | "openai-correctness"
+  | "azure-pronunciation";
+
+async function runStandardProvider<T>(
+  stage: StandardProviderStage,
+  task: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await task();
+  } catch (error) {
+    console.error("Standard evaluation provider failed", {
+      stage,
+      error:
+        error instanceof Error
+          ? { name: error.name, message: error.message }
+          : { name: "UnknownError" },
+    });
+
+    throw error;
+  }
 }
 
 function parseEvaluationMode(
