@@ -23,7 +23,7 @@ MAX_AUDIO_UPLOAD_BYTES=5000000
 INCLUDE_DEBUG_TIMINGS=false
 ```
 
-`ALLOWED_API_ORIGINS` is a comma-separated exact-origin allowlist for browser clients calling the API from another local app. When unset, same-origin app requests and no-origin clients such as curl, native apps, and server-to-server calls still work, but cross-origin browser requests are rejected. CORS is browser access control only; it is not production-grade abuse prevention.
+`ALLOWED_API_ORIGINS` is a comma-separated exact-origin allowlist for browser clients calling the API from another local app. When unset, same-origin app requests, no-origin clients such as curl and server-to-server calls, and Capacitor origins (`capacitor://localhost` and `http://localhost`) still work; other cross-origin browser requests are rejected. CORS is browser access control only; it is not production-grade abuse prevention.
 
 `MAX_AUDIO_UPLOAD_BYTES` limits uploaded audio size and defaults to `5000000`. `INCLUDE_DEBUG_TIMINGS=true` includes server timing details in production responses; timings are included automatically outside production.
 

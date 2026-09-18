@@ -1,12 +1,22 @@
 type JsonBody = Record<string, unknown>;
 
+const DEFAULT_NATIVE_API_ORIGINS = [
+  "capacitor://localhost",
+  "http://localhost",
+];
+
 const allowHeaders = "Content-Type";
 
 export function getAllowedApiOrigins() {
-  return (process.env.ALLOWED_API_ORIGINS ?? "")
+  const configuredOrigins = (process.env.ALLOWED_API_ORIGINS ?? "")
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
+
+  return [...new Set([
+    ...DEFAULT_NATIVE_API_ORIGINS,
+    ...configuredOrigins,
+  ])];
 }
 
 export function buildCorsHeaders(request: Request, headers?: HeadersInit) {
